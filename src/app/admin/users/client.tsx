@@ -1,4 +1,3 @@
-
 // src/app/admin/users/client.tsx
 'use client';
 
@@ -22,7 +21,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { Button } from '@/components/ui/button';
-import { getUsers, deleteUser } from '@/actions/adminActions';
+import { getUsers } from '@/actions/adminActions';
 import { AllUsersSuccessResponse, User } from '@/types';
 import { Toaster, toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -53,19 +52,6 @@ export function AllUsersClient() {
   const handlePageChange = (page: number) => {
     if (page > 0 && page <= (data?.pagination.totalPages || 1)) {
       setCurrentPage(page);
-    }
-  };
-
-  const handleDelete = async (userId: string) => {
-    if (window.confirm('Are you sure you want to delete this user? This action is irreversible.')) {
-      const result = await deleteUser(userId);
-      if (result.success) {
-        toast.success('User deleted successfully.');
-        // Refresh the user list
-        fetchUsers(currentPage, debouncedSearchTerm);
-      } else {
-        toast.error(`Failed to delete user: ${result.error}`);
-      }
     }
   };
 

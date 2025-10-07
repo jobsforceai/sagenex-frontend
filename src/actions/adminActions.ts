@@ -1,3 +1,4 @@
+
 // src/actions/adminActions.ts
 'use server';
 
@@ -9,7 +10,6 @@ import {
   ApiErrorResponse,
   ServerActionResponse,
   AllUsersSuccessResponse,
-  AssignCollectorSuccessResponse,
   PendingDepositsSuccessResponse,
   VerifyDepositSuccessResponse,
   User,
@@ -22,6 +22,7 @@ import {
   SetRateSuccessResponse,
   RefreshLiveRatesSuccessResponse,
   UserNode,
+  Deposit,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -129,6 +130,7 @@ export async function getMonthlyPayouts(
     }
 
     const successData: MonthlyPayoutsSuccessResponse = await response.json();
+    console.log('Fetched monthly payouts data:', successData);
     return { success: true, data: successData };
 
   } catch (error) {
@@ -258,39 +260,6 @@ export async function getReferralTree(
 }
 
 /**
- * Assigns a cash collector to a specific user.
- *
- * @param userId - The ID of the user to assign the collector to.
- * @param collectorId - The ID of the collector being assigned.
- * @returns A promise that resolves to a ServerActionResponse containing the success message and updated user.
- */
-export async function assignCollector(
-  userId: string,
-  collectorId: string
-): Promise<ServerActionResponse<AssignCollectorSuccessResponse>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/assign-collector`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify({ collectorId }),
-    });
-
-    if (!response.ok) {
-      return handleApiError(response);
-    }
-
-    const successData: AssignCollectorSuccessResponse = await response.json();
-    return { success: true, data: successData };
-  } catch (error) {
-    console.error('Network or other error in assignCollector:', error);
-    if (error instanceof Error) {
-      return { success: false, error: error.message };
-    }
-    return { success: false, error: 'An unexpected error occurred.' };
-  }
-}
-
-/**
  * Retrieves a list of all deposits with a 'PENDING' status.
  *
  * @returns A promise that resolves to a ServerActionResponse containing the list of pending deposits.
@@ -411,6 +380,37 @@ export async function createCollector(
     return { success: true, data: successData };
   } catch (error) {
     console.error('Network or other error in createCollector:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves all deposits recorded by a specific collector.
+ *
+ * @param collectorId - The ID of the collector.
+ * @returns A promise that resolves to a ServerActionResponse containing the list of deposits.
+ */
+export async function getCollectorDeposits(
+  collectorId: string
+): Promise<ServerActionResponse<Deposit[]>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/collectors/${collectorId}/deposits`, {
+      method: 'GET',
+      headers: await getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: Deposit[] = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getCollectorDeposits:', error);
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }

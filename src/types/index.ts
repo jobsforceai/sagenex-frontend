@@ -21,7 +21,6 @@ export interface User {
   dateJoined: string; // ISO 8601 date string
   status: 'active' | 'inactive';
   salary: number;
-  assignedCollectorId?: string | null; // The user ID of the assigned cash collector
   createdAt: string; // ISO 8601 date string
   updatedAt: string; // ISO 8601 date string
 }
@@ -33,8 +32,6 @@ export type OnboardUserParams = {
   fullName: string;
   email: string;
   phone?: string;
-  initialInvestmentLocal?: number;
-  currencyCode?: string;
   sponsorId?: string;
   dateJoined?: string; // YYYY-MM-DD format
 };
@@ -43,14 +40,6 @@ export type OnboardUserParams = {
  * Represents the successful response from the user onboarding API endpoint.
  */
 export interface OnboardUserSuccessResponse {
-  message: string;
-  user: User;
-}
-
-/**
- * Represents the successful response from assigning a collector to a user.
- */
-export interface AssignCollectorSuccessResponse {
   message: string;
   user: User;
 }
@@ -181,10 +170,13 @@ export interface Deposit {
   userFullName: string;
   collectorId: string;
   amountUSDT: number;
+  amountLocal?: number;
+  currencyCode?: string;
   method: DepositMethod;
   reference: string | null;
   proofUrl: string | null;
   status: DepositStatus;
+  verifiedAt?: string; // ISO 8601 date string
   createdAt: string; // ISO 8601 date string
   updatedAt: string; // ISO 8601 date string
 }

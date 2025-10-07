@@ -18,7 +18,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getMonthlyPayouts } from '@/actions/adminActions';
-import { MonthlyPayoutsSuccessResponse } from '@/types';
+import { MonthlyPayoutsSuccessResponse, UserPayout } from '@/types';
 import { Toaster, toast } from 'sonner';
 
 export function MonthlyPayoutsClient() {
@@ -35,7 +35,25 @@ export function MonthlyPayoutsClient() {
     const month = format(date, 'yyyy-MM');
     const result = await getMonthlyPayouts(month);
     if (result.success) {
-      setData(result.data);
+      const rawData: MonthlyPayoutsSuccessResponse | UserPayout[] = result.data;
+      if (Array.isArray(rawData)) {
+        // API returned an array of payouts, let's build the summary
+        const payouts: UserPayout[] = rawData;
+        const summary = {
+          totalUsers: payouts.length,
+          totalPackageVolume: payouts.reduce((acc, p) => acc + p.packageUSD, 0),
+          totalROIMonth: payouts.reduce((acc, p) => acc + p.roiPayout, 0),
+          totalDirectBonusMonth: payouts.reduce((acc, p) => acc + p.directReferralBonus, 0),
+          totalUnilevelMonth: payouts.reduce((acc, p) => acc + p.unilevelBonus, 0),
+        };
+        setData({ summary, payouts });
+      } else if (rawData && rawData.payouts) {
+        // API returned the expected object
+        setData(rawData as MonthlyPayoutsSuccessResponse);
+      } else {
+        toast.error('Received unexpected data format for payouts.');
+        setData(null);
+      }
     } else {
       toast.error(`Failed to fetch payouts: ${result.error}`);
       setData(null);
@@ -87,7 +105,7 @@ export function MonthlyPayoutsClient() {
           <div>
             <h2 className="text-2xl font-bold mb-4">Payout Summary</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-              {Object.entries(data.summary).map(([key, value]) => (
+              {data.summary && Object.entries(data.summary).map(([key, value]) => (
                 <Card key={key}>
                   <CardHeader>
                     <CardTitle className="text-sm font-medium capitalize">
@@ -95,7 +113,13 @@ export function MonthlyPayoutsClient() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+                    <p className="text-2xl font-bold">
+                      {key !== 'totalUsers' && '$'}
+                      {value.toLocaleString('en-US', {
+                        minimumFractionDigits: key === 'totalUsers' ? 0 : 2,
+                        maximumFractionDigits: key === 'totalUsers' ? 0 : 2,
+                      })}
+                    </p>
                   </CardContent>
                 </Card>
               ))}
@@ -117,16 +141,16 @@ export function MonthlyPayoutsClient() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.payouts.map((payout) => (
+                  {data.payouts && data.payouts.map((payout) => (
                     <TableRow key={payout.userId}>
                       <TableCell>{payout.userId}</TableCell>
                       <TableCell>{payout.fullName}</TableCell>
-                      <TableCell>${payout.packageUSD.toLocaleString()}</TableCell>
-                      <TableCell>${payout.roiPayout.toLocaleString()}</TableCell>
-                      <TableCell>${payout.directReferralBonus.toLocaleString()}</TableCell>
-                      <TableCell>${payout.unilevelBonus.toLocaleString()}</TableCell>
-                      <TableCell>${payout.salary.toLocaleString()}</TableCell>
-                      <TableCell className="font-bold">${payout.totalMonthlyIncome.toLocaleString()}</TableCell>
+                      <TableCell>${payout.packageUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>${payout.roiPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>${payout.directReferralBonus.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>${payout.unilevelBonus.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>${payout.salary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="font-bold">${payout.totalMonthlyIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

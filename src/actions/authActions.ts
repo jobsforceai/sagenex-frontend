@@ -25,8 +25,23 @@ export async function login(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      return { success: false, error: errorData.message || 'Login failed' };
+      let errorMessage = `Login failed: ${response.status} ${response.statusText}`;
+      try {
+        const contentType = response.headers.get('content-type');
+        let errorBodyText;
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorBodyText = errorData.message;
+        } else {
+          errorBodyText = await response.text();
+        }
+        if (errorBodyText) {
+          errorMessage = errorBodyText;
+        }
+      } catch {
+        // Ignore parsing errors, use the status-based message
+      }
+      return { success: false, error: errorMessage };
     }
 
     const successData: LoginSuccessResponse = await response.json();

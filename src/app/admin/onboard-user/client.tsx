@@ -1,4 +1,3 @@
-
 // src/app/admin/onboard-user/client.tsx
 'use client';
 
@@ -7,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -20,76 +18,29 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { onboardUser, getFixedRates } from '@/actions/adminActions';
+import { onboardUser } from '@/actions/adminActions';
 import { Toaster, toast } from 'sonner';
-import { FixedRate } from '@/types';
 
 const onboardSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
-  initialInvestmentLocal: z.number().positive('Investment must be a positive number').optional(),
-  currencyCode: z.string().optional(),
   sponsorId: z.string().optional(),
   dateJoined: z.date().optional(),
-}).refine(data => {
-  if (data.initialInvestmentLocal && !data.currencyCode) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Currency code is required when an investment is entered.',
-  path: ['currencyCode'],
 });
 
 type OnboardFormValues = z.infer<typeof onboardSchema>;
 
 export function OnboardUserForm() {
-  const [fixedRates, setFixedRates] = useState<FixedRate[]>([]);
-  const [selectedCurrency, setSelectedCurrency] = useState<string | undefined>();
-  const [investmentAmount, setInvestmentAmount] = useState<number | undefined>();
-
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
     control,
-    watch,
   } = useForm<OnboardFormValues>({
     resolver: zodResolver(onboardSchema),
   });
-
-  const watchedCurrency = watch('currencyCode');
-  const watchedInvestment = watch('initialInvestmentLocal');
-
-  useEffect(() => {
-    const fetchRates = async () => {
-      const result = await getFixedRates();
-      if (result.success) {
-        setFixedRates(result.data || []);
-      } else {
-        toast.error('Could not load currency rates.');
-      }
-    };
-    fetchRates();
-  }, []);
-
-  useEffect(() => {
-    setSelectedCurrency(watchedCurrency);
-    setInvestmentAmount(watchedInvestment);
-  }, [watchedCurrency, watchedInvestment]);
-
-  const getConversion = () => {
-    if (selectedCurrency && investmentAmount) {
-      const rate = fixedRates.find(r => r.currencyCode === selectedCurrency);
-      if (rate) {
-        const convertedAmount = investmentAmount / rate.rateToUSDT;
-        return `~ ${convertedAmount.toFixed(2)} USDT`;
-      }
-    }
-    return null;
-  };
 
   const onSubmit = async (data: OnboardFormValues) => {
     const userData = {
@@ -125,28 +76,6 @@ export function OnboardUserForm() {
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" {...register('email')} />
                 {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="initialInvestmentLocal">Initial Investment (Optional)</Label>
-                <Input id="initialInvestmentLocal" type="number" {...register('initialInvestmentLocal', { valueAsNumber: true })} />
-                {errors.initialInvestmentLocal && <p className="text-red-500 text-sm">{errors.initialInvestmentLocal.message}</p>}
-                <p className="text-sm text-muted-foreground">{getConversion()}</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="currencyCode">Currency</Label>
-                <select
-                  id="currencyCode"
-                  {...register('currencyCode')}
-                  className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">Select Currency</option>
-                  {fixedRates.map(rate => (
-                    <option key={rate.currencyCode} value={rate.currencyCode}>
-                      {rate.currencyCode}
-                    </option>
-                  ))}
-                </select>
-                {errors.currencyCode && <p className="text-red-500 text-sm">{errors.currencyCode.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone (Optional)</Label>

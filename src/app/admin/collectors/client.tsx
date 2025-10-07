@@ -1,10 +1,11 @@
 // src/app/admin/collectors/client.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -44,10 +45,9 @@ export function CollectorsClient() {
     resolver: zodResolver(collectorSchema),
   });
 
-  const fetchCollectors = async () => {
+  const fetchCollectors = useCallback(async () => {
     setIsLoading(true);
     const result = await getCollectors();
-    console.log('Fetch collectors result:', result);
     if (result.success) {
       setCollectors(result.data || []);
     } else {
@@ -55,16 +55,14 @@ export function CollectorsClient() {
       setCollectors([]);
     }
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchCollectors();
-  }, []);
+  }, [fetchCollectors]);
 
   const onSubmit = async (data: CollectorFormValues) => {
-    console.log('Submitting form data:', data);
     const result = await createCollector(data);
-    console.log('Create collector result:', result);
     if (result.success) {
       toast.success('Collector created successfully!');
       reset();
@@ -130,12 +128,13 @@ export function CollectorsClient() {
                 <TableHead>Full Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={5} className="text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
@@ -146,11 +145,16 @@ export function CollectorsClient() {
                     <TableCell>{collector.fullName}</TableCell>
                     <TableCell>{collector.email}</TableCell>
                     <TableCell>{collector.phone || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Link href={`/admin/collectors/${collector.collectorId}/deposits`}>
+                        <Button variant="outline" size="sm">View Deposits</Button>
+                      </Link>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={5} className="text-center">
                     No collectors found.
                   </TableCell>
                 </TableRow>
