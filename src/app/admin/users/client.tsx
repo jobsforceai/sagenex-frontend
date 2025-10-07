@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -20,10 +21,11 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { Button } from '@/components/ui/button';
 import { getUsers } from '@/actions/adminActions';
 import { AllUsersSuccessResponse, User } from '@/types';
 import { Toaster, toast } from 'sonner';
-import { useDebounce } from '@/hooks/useDebounce'; // We will create this hook next
+import { useDebounce } from '@/hooks/useDebounce';
 
 export function AllUsersClient() {
   const [data, setData] = useState<AllUsersSuccessResponse | null>(null);
@@ -75,8 +77,8 @@ export function AllUsersClient() {
                 <TableHead>Email</TableHead>
                 <TableHead>Package (USD)</TableHead>
                 <TableHead>Sponsor ID</TableHead>
-                <TableHead>Referral Code</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -94,8 +96,12 @@ export function AllUsersClient() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>${user.packageUSD.toLocaleString()}</TableCell>
                     <TableCell>{user.sponsorId || 'N/A'}</TableCell>
-                    <TableCell>{user.referralCode}</TableCell>
                     <TableCell>{user.status}</TableCell>
+                    <TableCell>
+                      <Link href={`/admin/users/${user.userId}`}>
+                        <Button variant="outline" size="sm">View</Button>
+                      </Link>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (

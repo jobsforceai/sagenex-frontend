@@ -21,19 +21,20 @@ export interface User {
   dateJoined: string; // ISO 8601 date string
   status: 'active' | 'inactive';
   salary: number;
+  assignedCollectorId?: string | null; // The user ID of the assigned cash collector
   createdAt: string; // ISO 8601 date string
   updatedAt: string; // ISO 8601 date string
 }
 
 /**
  * Defines the parameters required to onboard a new user.
- * All fields except phone, sponsorId, and dateJoined are required.
  */
 export type OnboardUserParams = {
   fullName: string;
   email: string;
-  packageUSD: number;
   phone?: string;
+  initialInvestmentLocal?: number;
+  currencyCode?: string;
   sponsorId?: string;
   dateJoined?: string; // YYYY-MM-DD format
 };
@@ -45,6 +46,89 @@ export interface OnboardUserSuccessResponse {
   message: string;
   user: User;
 }
+
+/**
+ * Represents the successful response from assigning a collector to a user.
+ */
+export interface AssignCollectorSuccessResponse {
+  message: string;
+  user: User;
+}
+
+export interface UserNode {
+  userId: string;
+  fullName: string;
+  packageUSD: number;
+  children: UserNode[];
+}
+
+// ================================================
+// Auth Types
+// ================================================
+
+export interface LoginSuccessResponse {
+  token: string;
+}
+
+// ================================================
+// Collector Types
+// ================================================
+
+export interface Collector {
+  _id: string;
+  collectorId: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  createdAt: string; // ISO 8601 date string
+  updatedAt: string; // ISO 8601 date string
+}
+
+export type CreateCollectorParams = {
+  fullName: string;
+  email: string;
+  password?: string;
+  phone?: string;
+};
+
+export interface CreateCollectorSuccessResponse {
+  message: string;
+  collector: Collector;
+}
+
+export type AllCollectorsSuccessResponse = Collector[];
+
+
+// ================================================
+// Currency & Rates Types
+// ================================================
+
+export interface LiveRate {
+  [currencyCode: string]: number;
+}
+
+export interface FixedRate {
+  _id: string;
+  currencyCode: string;
+  rateToUSDT: number;
+  updatedAt: string; // ISO 8601 date string
+}
+
+export type SetRateParams = {
+  currencyCode: string;
+  rate: number;
+};
+
+export interface SetRateSuccessResponse {
+  message: string;
+  rate: FixedRate;
+}
+
+export interface RefreshLiveRatesSuccessResponse {
+  message: string;
+  rates: LiveRate;
+}
+
 
 // ================================================
 // Payouts Types
@@ -83,6 +167,40 @@ export interface MonthlyPayoutsSuccessResponse {
   payouts: UserPayout[];
 }
 
+// ================================================
+// Deposits Types
+// ================================================
+
+export type DepositStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+export type DepositMethod = 'CASH' | 'BANK_TRANSFER' | 'CRYPTO';
+
+export interface Deposit {
+  _id: string;
+  depositId: string;
+  userId: string;
+  userFullName: string;
+  collectorId: string;
+  amountUSDT: number;
+  method: DepositMethod;
+  reference: string | null;
+  proofUrl: string | null;
+  status: DepositStatus;
+  createdAt: string; // ISO 8601 date string
+  updatedAt: string; // ISO 8601 date string
+}
+
+export type PendingDepositsSuccessResponse = Deposit[];
+
+export interface VerifyDepositSuccessResponse {
+  message: string;
+  deposit: Deposit;
+}
+
+
+// ================================================
+// Generic & Pagination Types
+// ================================================
+
 /**
  * Represents the pagination metadata returned from the API.
  */
@@ -109,6 +227,7 @@ export interface AllUsersSuccessResponse {
  */
 export interface ApiErrorResponse {
   message: string;
+  error?: string;
 }
 
 /**

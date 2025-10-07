@@ -2,19 +2,74 @@
 // src/actions/adminActions.ts
 'use server';
 
+import { cookies } from 'next/headers';
 import {
   OnboardUserParams,
   OnboardUserSuccessResponse,
   MonthlyPayoutsSuccessResponse,
   ApiErrorResponse,
   ServerActionResponse,
-  AllUsersSuccessResponse
+  AllUsersSuccessResponse,
+  AssignCollectorSuccessResponse,
+  PendingDepositsSuccessResponse,
+  VerifyDepositSuccessResponse,
+  User,
+  AllCollectorsSuccessResponse,
+  CreateCollectorParams,
+  CreateCollectorSuccessResponse,
+  LiveRate,
+  FixedRate,
+  SetRateParams,
+  SetRateSuccessResponse,
+  RefreshLiveRatesSuccessResponse,
+  UserNode,
 } from '@/types';
 
-// It's a good practice to use an environment variable for the API base URL.
-// Remember to create a .env.local file in your project root and add:
-// NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const AUTH_COOKIE_NAME = 'sagenex_auth_token';
+
+/**
+ * Creates the authorization headers for API requests.
+ * @returns A Headers object with the Authorization token.
+ */
+function getAuthHeaders(): Headers {
+  // @ts-expect-error - The build tool is incorrectly inferring cookies() as a promise.
+  const token = cookies().get(AUTH_COOKIE_NAME)?.value;
+  const headers = new Headers();
+  headers.append('Content-Type', 'application/json');
+  if (token) {
+    headers.append('Authorization', `Bearer ${token}`);
+  }
+  return headers;
+}
+
+/**
+ * Handles API error responses gracefully.
+ * If the response is JSON, it extracts the message.
+ * If not, it returns the response text.
+ * @param response - The fetch response object.
+ * @returns A structured error object.
+ */
+async function handleApiError(response: Response): Promise<{ success: false; error: string }> {
+  let errorMessage = `Request failed with status ${response.status}`;
+  try {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const errorData: ApiErrorResponse = await response.json();
+      let detailedError = errorData.message || 'An unknown error occurred.';
+      if (errorData.error) {
+        detailedError += `: ${errorData.error}`;
+      }
+      errorMessage = detailedError;
+    } else {
+      const textError = await response.text();
+      errorMessage = textError || errorMessage;
+    }
+  } catch (e) {
+    console.error('Failed to parse error response:', e);
+  }
+  return { success: false, error: errorMessage };
+}
 
 /**
  * Onboards a new user by making a POST request to the /admin/onboard endpoint.
@@ -28,16 +83,12 @@ export async function onboardUser(
   try {
     const response = await fetch(`${API_BASE_URL}/admin/onboard`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(userData),
     });
 
     if (!response.ok) {
-      const errorData: ApiErrorResponse = await response.json();
-      // Return a structured error object
-      return { success: false, error: errorData.message || 'An unknown error occurred.' };
+      return handleApiError(response);
     }
 
     const successData: OnboardUserSuccessResponse = await response.json();
@@ -45,7 +96,6 @@ export async function onboardUser(
 
   } catch (error) {
     console.error('Network or other error in onboardUser:', error);
-    // Handle network errors or other exceptions
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }
@@ -62,7 +112,6 @@ export async function onboardUser(
 export async function getMonthlyPayouts(
   month: string
 ): Promise<ServerActionResponse<MonthlyPayoutsSuccessResponse>> {
-  // Basic validation for the month format
   if (!/^\d{4}-\d{2}$/.test(month)) {
     return { success: false, error: "Invalid month format. Expected 'YYYY-MM'." };
   }
@@ -73,17 +122,12 @@ export async function getMonthlyPayouts(
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Caching can be beneficial for GET requests that don't change often.
-      // 'no-store' ensures we always get the latest data.
+      headers: getAuthHeaders(),
       cache: 'no-store', 
     });
 
     if (!response.ok) {
-      const errorData: ApiErrorResponse = await response.json();
-      return { success: false, error: errorData.message || 'An unknown error occurred.' };
+      return handleApiError(response);
     }
 
     const successData: MonthlyPayoutsSuccessResponse = await response.json();
@@ -123,15 +167,12 @@ export async function getUsers({
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       cache: 'no-store',
     });
 
     if (!response.ok) {
-      const errorData: ApiErrorResponse = await response.json();
-      return { success: false, error: errorData.message || 'An unknown error occurred.' };
+      return handleApiError(response);
     }
 
     const successData: AllUsersSuccessResponse = await response.json();
@@ -139,6 +180,353 @@ export async function getUsers({
 
   } catch (error) {
     console.error('Network or other error in getUsers:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves a single user by their ID.
+ *
+ * @param userId - The ID of the user to retrieve.
+ * @returns A promise that resolves to a ServerActionResponse containing the user data.
+ */
+export async function getUser(
+  userId: string
+): Promise<ServerActionResponse<User>> {
+  const url = new URL(`${API_BASE_URL}/admin/users/${userId}`);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: User = await response.json();
+    return { success: true, data: successData };
+
+  } catch (error) {
+    console.error('Network or other error in getUser:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves the referral tree for a specific user.
+ *
+ * @param userId - The ID of the root user.
+ * @param depth - The maximum depth of the tree to fetch.
+ * @returns A promise that resolves to a ServerActionResponse containing the referral tree data.
+ */
+export async function getReferralTree(
+  userId: string,
+  depth?: number
+): Promise<ServerActionResponse<UserNode>> {
+  const url = new URL(`${API_BASE_URL}/admin/users/${userId}/tree`);
+  if (depth) {
+    url.searchParams.append('depth', String(depth));
+  }
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: UserNode = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getReferralTree:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Assigns a cash collector to a specific user.
+ *
+ * @param userId - The ID of the user to assign the collector to.
+ * @param collectorId - The ID of the collector being assigned.
+ * @returns A promise that resolves to a ServerActionResponse containing the success message and updated user.
+ */
+export async function assignCollector(
+  userId: string,
+  collectorId: string
+): Promise<ServerActionResponse<AssignCollectorSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/assign-collector`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ collectorId }),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: AssignCollectorSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in assignCollector:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves a list of all deposits with a 'PENDING' status.
+ *
+ * @returns A promise that resolves to a ServerActionResponse containing the list of pending deposits.
+ */
+export async function getPendingDeposits(): Promise<ServerActionResponse<PendingDepositsSuccessResponse>> {
+  const url = new URL(`${API_BASE_URL}/admin/deposits`);
+  url.searchParams.append('status', 'PENDING');
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: PendingDepositsSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getPendingDeposits:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Verifies a pending deposit.
+ *
+ * @param depositId - The ID of the deposit to verify.
+ * @returns A promise that resolves to a ServerActionResponse containing the success message and updated deposit.
+ */
+export async function verifyDeposit(
+  depositId: string
+): Promise<ServerActionResponse<VerifyDepositSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/deposits/${depositId}/verify`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: VerifyDepositSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in verifyDeposit:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves a list of all collectors.
+ *
+ * @param search - Optional search term to filter collectors.
+ * @returns A promise that resolves to a ServerActionResponse containing the list of collectors.
+ */
+export async function getCollectors(
+  search: string = ''
+): Promise<ServerActionResponse<AllCollectorsSuccessResponse>> {
+  const url = new URL(`${API_BASE_URL}/admin/collectors`);
+  if (search) {
+    url.searchParams.append('search', search);
+  }
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: AllCollectorsSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getCollectors:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Creates a new collector.
+ *
+ * @param collectorData - The data for the new collector.
+ * @returns A promise that resolves to a ServerActionResponse containing the success message and new collector data.
+ */
+export async function createCollector(
+  collectorData: CreateCollectorParams
+): Promise<ServerActionResponse<CreateCollectorSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/collectors`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(collectorData),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: CreateCollectorSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in createCollector:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves live currency conversion rates.
+ *
+ * @returns A promise that resolves to a ServerActionResponse containing live rate data.
+ */
+export async function getLiveRates(): Promise<ServerActionResponse<LiveRate>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rates/live`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: LiveRate = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getLiveRates:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves the list of admin-set fixed currency rates.
+ *
+ * @returns A promise that resolves to a ServerActionResponse containing the list of fixed rates.
+ */
+export async function getFixedRates(): Promise<ServerActionResponse<FixedRate[]>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rates`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: FixedRate[] = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getFixedRates:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Sets or updates a fixed currency rate.
+ *
+ * @param rateData - The currency code and the new rate.
+ * @returns A promise that resolves to a ServerActionResponse containing the success message.
+ */
+export async function setFixedRate(
+  rateData: SetRateParams
+): Promise<ServerActionResponse<SetRateSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rates`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(rateData),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: SetRateSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in setFixedRate:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Triggers a refresh of the live currency rates.
+ *
+ * @returns A promise that resolves to a ServerActionResponse containing the newly refreshed rates.
+ */
+export async function refreshLiveRates(): Promise<ServerActionResponse<RefreshLiveRatesSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rates/live/refresh`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: RefreshLiveRatesSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in refreshLiveRates:', error);
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }
