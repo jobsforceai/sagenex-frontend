@@ -32,9 +32,8 @@ const AUTH_COOKIE_NAME = 'sagenex_auth_token';
  * Creates the authorization headers for API requests.
  * @returns A Headers object with the Authorization token.
  */
-function getAuthHeaders(): Headers {
-  // @ts-expect-error - The build tool is incorrectly inferring cookies() as a promise.
-  const token = cookies().get(AUTH_COOKIE_NAME)?.value;
+async function getAuthHeaders(): Promise<Headers> {
+  const token = (await cookies()).get(AUTH_COOKIE_NAME)?.value;
   const headers = new Headers();
   headers.append('Content-Type', 'application/json');
   if (token) {
@@ -83,7 +82,7 @@ export async function onboardUser(
   try {
     const response = await fetch(`${API_BASE_URL}/admin/onboard`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(userData),
     });
 
@@ -122,7 +121,7 @@ export async function getMonthlyPayouts(
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: 'no-store', 
     });
 
@@ -167,7 +166,7 @@ export async function getUsers({
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: 'no-store',
     });
 
@@ -201,7 +200,7 @@ export async function getUser(
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: 'no-store',
     });
 
@@ -240,7 +239,7 @@ export async function getReferralTree(
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: 'no-store',
     });
 
@@ -273,7 +272,7 @@ export async function assignCollector(
   try {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/assign-collector`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ collectorId }),
     });
 
@@ -299,15 +298,14 @@ export async function assignCollector(
  */
 export async function getPendingDeposits(): Promise<ServerActionResponse<PendingDepositsSuccessResponse>> {
   const url = new URL(`${API_BASE_URL}/admin/deposits`);
-  url.searchParams.append('status', 'PENDING');
-
-  try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-
+      url.searchParams.append('status', 'PENDING');
+  
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+          cache: 'no-store',
+        });
     if (!response.ok) {
       return handleApiError(response);
     }
@@ -335,7 +333,7 @@ export async function verifyDeposit(
   try {
     const response = await fetch(`${API_BASE_URL}/admin/deposits/${depositId}/verify`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -370,7 +368,7 @@ export async function getCollectors(
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: 'no-store',
     });
 
@@ -401,7 +399,7 @@ export async function createCollector(
   try {
     const response = await fetch(`${API_BASE_URL}/admin/collectors`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(collectorData),
     });
 
@@ -429,7 +427,7 @@ export async function getLiveRates(): Promise<ServerActionResponse<LiveRate>> {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/rates/live`, {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: 'no-store',
     });
 
@@ -457,7 +455,7 @@ export async function getFixedRates(): Promise<ServerActionResponse<FixedRate[]>
   try {
     const response = await fetch(`${API_BASE_URL}/admin/rates`, {
       method: 'GET',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       cache: 'no-store',
     });
 
@@ -488,7 +486,7 @@ export async function setFixedRate(
   try {
     const response = await fetch(`${API_BASE_URL}/admin/rates`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(rateData),
     });
 
@@ -516,7 +514,7 @@ export async function refreshLiveRates(): Promise<ServerActionResponse<RefreshLi
   try {
     const response = await fetch(`${API_BASE_URL}/admin/rates/live/refresh`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: await getAuthHeaders(),
     });
 
     if (!response.ok) {
