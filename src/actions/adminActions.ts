@@ -1,4 +1,3 @@
-
 // src/actions/adminActions.ts
 'use server';
 
@@ -298,14 +297,15 @@ export async function assignCollector(
  */
 export async function getPendingDeposits(): Promise<ServerActionResponse<PendingDepositsSuccessResponse>> {
   const url = new URL(`${API_BASE_URL}/admin/deposits`);
-      url.searchParams.append('status', 'PENDING');
-  
-      try {
-        const response = await fetch(url.toString(), {
-          method: 'GET',
-          headers: await getAuthHeaders(),
-          cache: 'no-store',
-        });
+  url.searchParams.append('status', 'PENDING');
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: await getAuthHeaders(),
+      cache: 'no-store',
+    });
+
     if (!response.ok) {
       return handleApiError(response);
     }
@@ -525,6 +525,42 @@ export async function refreshLiveRates(): Promise<ServerActionResponse<RefreshLi
     return { success: true, data: successData };
   } catch (error) {
     console.error('Network or other error in refreshLiveRates:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Deletes a user by their ID.
+ *
+ * @param userId - The ID of the user to delete.
+ * @returns A promise that resolves to a ServerActionResponse indicating success or failure.
+ */
+export async function deleteUser(
+  userId: string
+): Promise<ServerActionResponse<null>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: await getAuthHeaders(),
+    });
+
+    if (response.status === 204) {
+      return { success: true, data: null };
+    }
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    // This part should ideally not be reached for a 204 response,
+    // but as a fallback for other 2xx statuses.
+    return { success: true, data: null };
+
+  } catch (error) {
+    console.error('Network or other error in deleteUser:', error);
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }

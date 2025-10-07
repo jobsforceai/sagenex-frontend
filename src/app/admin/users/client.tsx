@@ -22,7 +22,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { Button } from '@/components/ui/button';
-import { getUsers } from '@/actions/adminActions';
+import { getUsers, deleteUser } from '@/actions/adminActions';
 import { AllUsersSuccessResponse, User } from '@/types';
 import { Toaster, toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -56,6 +56,19 @@ export function AllUsersClient() {
     }
   };
 
+  const handleDelete = async (userId: string) => {
+    if (window.confirm('Are you sure you want to delete this user? This action is irreversible.')) {
+      const result = await deleteUser(userId);
+      if (result.success) {
+        toast.success('User deleted successfully.');
+        // Refresh the user list
+        fetchUsers(currentPage, debouncedSearchTerm);
+      } else {
+        toast.error(`Failed to delete user: ${result.error}`);
+      }
+    }
+  };
+
   return (
     <>
       <Toaster />
@@ -77,6 +90,7 @@ export function AllUsersClient() {
                 <TableHead>Email</TableHead>
                 <TableHead>Package (USD)</TableHead>
                 <TableHead>Sponsor ID</TableHead>
+                <TableHead>Referral Code</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -84,7 +98,7 @@ export function AllUsersClient() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
@@ -96,17 +110,25 @@ export function AllUsersClient() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>${user.packageUSD.toLocaleString()}</TableCell>
                     <TableCell>{user.sponsorId || 'N/A'}</TableCell>
+                    <TableCell>{user.referralCode}</TableCell>
                     <TableCell>{user.status}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-2">
                       <Link href={`/admin/users/${user.userId}`}>
                         <Button variant="outline" size="sm">View</Button>
                       </Link>
+                      {/* <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(user.userId)}
+                      >
+                        Delete
+                      </Button> */}
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     No users found.
                   </TableCell>
                 </TableRow>
