@@ -487,7 +487,7 @@ export async function setFixedRate(
     const response = await fetch(`${API_BASE_URL}/admin/rates`, {
       method: 'POST',
       headers: await getAuthHeaders(),
-      body: JSON.stringify(rateData),
+      body: JSON.stringify(rateData), // rateData now contains rateToUSDT
     });
 
     if (!response.ok) {

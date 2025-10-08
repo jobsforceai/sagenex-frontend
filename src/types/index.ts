@@ -99,13 +99,15 @@ export interface LiveRate {
 export interface FixedRate {
   _id: string;
   currencyCode: string;
+  countryName: string;
   rateToUSDT: number;
   updatedAt: string; // ISO 8601 date string
+  lastUpdatedBy?: string;
 }
 
 export type SetRateParams = {
   currencyCode: string;
-  rate: number;
+  rateToUSDT: number;
 };
 
 export interface SetRateSuccessResponse {

@@ -1,7 +1,7 @@
 // src/app/admin/currency-rates/client.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,14 +16,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { getLiveRates, getFixedRates, setFixedRate, refreshLiveRates } from '@/actions/adminActions';
 import { LiveRate, FixedRate } from '@/types';
 import { Toaster, toast } from 'sonner';
 
 const rateSchema = z.object({
   currencyCode: z.string().min(3, 'Currency code must be 3 characters').max(3),
-  rate: z.number().positive('Rate must be a positive number'),
+  rateToUSDT: z.number().positive('Rate must be a positive number'),
 });
 
 type RateFormValues = z.infer<typeof rateSchema>;
@@ -33,6 +33,20 @@ export function RatesClient() {
   const [fixedRates, setFixedRates] = useState<FixedRate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [editingRateId, setEditingRateId] = useState<string | null>(null);
+  const [editedRateValue, setEditedRateValue] = useState<number>(0);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredRates = useMemo(() => {
+    if (!searchTerm) {
+      return fixedRates;
+    }
+    return fixedRates.filter(
+      (rate) =>
+        rate.currencyCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (rate.countryName && rate.countryName.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [fixedRates, searchTerm]);
 
   const {
     register,
@@ -64,14 +78,33 @@ export function RatesClient() {
     setIsLoading(false);
   };
 
+  const handleSaveRate = async (currencyCode: string) => {
+    if (editedRateValue <= 0) {
+      toast.error('Rate must be a positive number.');
+      return;
+    }
+    const result = await setFixedRate({
+      currencyCode,
+      rateToUSDT: editedRateValue,
+    });
+
+    if (result.success) {
+      toast.success('Rate updated successfully!');
+      setEditingRateId(null);
+      fetchRates(); // Refresh the list
+    } else {
+      toast.error(`Failed to update rate: ${result.error}`);
+    }
+  };
+
   useEffect(() => {
     fetchRates();
   }, []);
 
   const onSubmit = async (data: RateFormValues) => {
     const result = await setFixedRate({
-      ...data,
       currencyCode: data.currencyCode.toUpperCase(),
+      rateToUSDT: data.rateToUSDT,
     });
     if (result.success) {
       toast.success('Rate set successfully!');
@@ -88,6 +121,7 @@ export function RatesClient() {
     if (result.success) {
       toast.success(result.data.message);
       setLiveRates(result.data.rates);
+      fetchRates(); // Re-fetch fixed rates
     } else {
       toast.error(`Failed to refresh rates: ${result.error}`);
     }
@@ -97,25 +131,63 @@ export function RatesClient() {
   return (
     <>
       <Toaster />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Column 1: Live Rates */}
+        <div className="xl:col-span-1">
           <Card>
-            <CardHeader>
-              <CardTitle>Set Fixed Rate</CardTitle>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle>Live Rate Reference</CardTitle>
+                <CardDescription>Live rates vs USDT, refreshed automatically.</CardDescription>
+              </div>
+              <Button onClick={handleRefresh} disabled={isRefreshing} size="sm">
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit(onSubmit)} className="flex items-end space-x-4">
+              {isLoading ? (
+                <p>Loading live rates...</p>
+              ) : liveRates ? (
+                <ul className="space-y-2 text-sm">
+                  {Object.entries(liveRates).map(([code, rate]) => {
+                    if (typeof rate === 'number') {
+                      return (
+                        <li key={code} className="flex justify-between items-center">
+                          <strong className="font-medium">{code}:</strong>
+                          <span className="text-muted-foreground">{rate.toFixed(4)}</span>
+                        </li>
+                      );
+                    }
+                    return null;
+                  })}
+                </ul>
+              ) : (
+                <p>Could not load live rates.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Column 2: Fixed Rates Management */}
+        <div className="xl:col-span-2 space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Set / Add New Rate</CardTitle>
+              <CardDescription>Manually set a new or existing currency rate.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                 <div className="space-y-2">
-                  <Label htmlFor="currencyCode">Currency Code (e.g., INR)</Label>
-                  <Input id="currencyCode" {...register('currencyCode')} />
+                  <Label htmlFor="currencyCode">Currency Code</Label>
+                  <Input id="currencyCode" {...register('currencyCode')} placeholder="e.g., INR" />
                   {errors.currencyCode && <p className="text-red-500 text-sm">{errors.currencyCode.message}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="rate">Rate to USDT</Label>
-                  <Input id="rate" type="number" step="0.01" {...register('rate', { valueAsNumber: true })} />
-                  {errors.rate && <p className="text-red-500 text-sm">{errors.rate.message}</p>}
+                  <Label htmlFor="rateToUSDT">Rate to USDT</Label>
+                  <Input id="rateToUSDT" type="number" step="any" {...register('rateToUSDT', { valueAsNumber: true })} placeholder="e.g., 85.17" />
+                  {errors.rateToUSDT && <p className="text-red-500 text-sm">{errors.rateToUSDT.message}</p>}
                 </div>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                   {isSubmitting ? 'Saving...' : 'Save Rate'}
                 </Button>
               </form>
@@ -124,70 +196,84 @@ export function RatesClient() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Current Fixed Rates</CardTitle>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Current Fixed Rates</CardTitle>
+                  <CardDescription>These are the rates currently used for all calculations.</CardDescription>
+                </div>
+                <Input
+                  placeholder="Search by code or country..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-xs"
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Currency Code</TableHead>
+                    <TableHead className="w-[100px]">Code</TableHead>
+                    <TableHead>Country</TableHead>
                     <TableHead>Rate to USDT</TableHead>
                     <TableHead>Last Updated</TableHead>
+                    <TableHead>Updated By</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center">Loading...</TableCell>
+                      <TableCell colSpan={6} className="text-center h-24">Loading...</TableCell>
                     </TableRow>
-                  ) : fixedRates.length ? (
-                    fixedRates.map((rate) => (
-                      <TableRow key={rate.currencyCode}>
-                        <TableCell>{rate.currencyCode}</TableCell>
-                        <TableCell>{rate.rateToUSDT}</TableCell>
-                        <TableCell>{new Date(rate.updatedAt).toLocaleString()}</TableCell>
+                  ) : filteredRates.length ? (
+                    filteredRates.map((rate) => (
+                      <TableRow key={rate._id}>
+                        <TableCell className="font-medium">{rate.currencyCode}</TableCell>
+                        <TableCell>{rate.countryName}</TableCell>
+                        <TableCell>
+                          {editingRateId === rate._id ? (
+                            <Input
+                              type="number"
+                              step="any"
+                              value={editedRateValue}
+                              onChange={(e) => setEditedRateValue(parseFloat(e.target.value))}
+                              className="h-8"
+                            />
+                          ) : (
+                            rate.rateToUSDT.toFixed(4)
+                          )}
+                        </TableCell>
+                        <TableCell>{new Date(rate.updatedAt).toLocaleDateString()}</TableCell>
+                        <TableCell>{rate.lastUpdatedBy || 'N/A'}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          {editingRateId === rate._id ? (
+                            <>
+                              <Button size="sm" onClick={() => handleSaveRate(rate.currencyCode)}>Save</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingRateId(null)}>Cancel</Button>
+                            </>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingRateId(rate._id);
+                                setEditedRateValue(rate.rateToUSDT);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center">No fixed rates set.</TableCell>
+                      <TableCell colSpan={6} className="text-center h-24">No rates found.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Live Rate Reference (vs USDT)</CardTitle>
-              <Button onClick={handleRefresh} disabled={isRefreshing} size="sm">
-                {isRefreshing ? 'Refreshing...' : 'Refresh Live Rates'}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <p>Loading live rates...</p>
-              ) : liveRates ? (
-                <ul className="space-y-2">
-                  {Object.entries(liveRates).map(([code, rate]) => {
-                    if (typeof rate === 'number') {
-                      return (
-                        <li key={code} className="flex justify-between">
-                          <strong>{code}:</strong>
-                          <span>{rate.toFixed(4)}</span>
-                        </li>
-                      );
-                    }
-                    console.warn(`Unexpected live rate format for ${code}:`, rate);
-                    return null;
-                  })}
-                </ul>
-              ) : (
-                <p>Could not load live rates.</p>
-              )}
             </CardContent>
           </Card>
         </div>
