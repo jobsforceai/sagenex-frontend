@@ -23,6 +23,9 @@ import {
   RefreshLiveRatesSuccessResponse,
   UserNode,
   Deposit,
+  DirectChildrenSuccessResponse,
+  ReferralTreeResponse,
+  UpdateUserParams,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -57,7 +60,11 @@ async function handleApiError(response: Response): Promise<{ success: false; err
       const errorData: ApiErrorResponse = await response.json();
       let detailedError = errorData.message || 'An unknown error occurred.';
       if (errorData.error) {
-        detailedError += `: ${errorData.error}`;
+        if (typeof errorData.error === 'object') {
+          detailedError += `: ${JSON.stringify(errorData.error)}`;
+        } else {
+          detailedError += `: ${errorData.error}`;
+        }
       }
       errorMessage = detailedError;
     } else {
@@ -231,7 +238,7 @@ export async function getUser(
 export async function getReferralTree(
   userId: string,
   depth?: number
-): Promise<ServerActionResponse<UserNode>> {
+): Promise<ServerActionResponse<ReferralTreeResponse>> {
   const url = new URL(`${API_BASE_URL}/admin/users/${userId}/tree`);
   if (depth) {
     url.searchParams.append('depth', String(depth));
@@ -248,7 +255,7 @@ export async function getReferralTree(
       return handleApiError(response);
     }
 
-    const successData: UserNode = await response.json();
+    const successData: ReferralTreeResponse = await response.json();
     return { success: true, data: successData };
   } catch (error) {
     console.error('Network or other error in getReferralTree:', error);
@@ -560,10 +567,75 @@ export async function deleteUser(
     return { success: true, data: null };
 
   } catch (error) {
-    console.error('Network or other error in deleteUser:', error);
+        return { success: false, error: 'An unexpected error occurred.' };
+      }
+    }
+    
+/**
+ * Updates a user's details.
+ *
+ * @param userId - The ID of the user to update.
+ * @param userData - The data to update.
+ * @returns A promise that resolves to a ServerActionResponse containing the updated user data.
+ */
+export async function updateUser(
+  userId: string,
+  userData: UpdateUserParams
+): Promise<ServerActionResponse<User>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: { message: string; user: User } = await response.json();
+    return { success: true, data: successData.user };
+
+  } catch (error) {
+    console.error('Network or other error in updateUser:', error);
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }
     return { success: false, error: 'An unexpected error occurred.' };
   }
 }
+
+    /**
+     * Retrieves the direct children of a specific user using the dedicated endpoint.
+     *
+     * @param userId - The ID of the user whose children to retrieve.
+     * @returns A promise that resolves to a ServerActionResponse containing the list of direct children.
+     */
+    export async function getDirectChildren(
+      userId: string
+    ): Promise<ServerActionResponse<DirectChildrenSuccessResponse>> {
+      const url = new URL(`${API_BASE_URL}/admin/users/${userId}/children`);
+    
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+          cache: 'no-store',
+        });
+    
+        if (!response.ok) {
+          return handleApiError(response);
+        }
+    
+        const successData: DirectChildrenSuccessResponse = await response.json();
+        return { success: true, data: successData };
+    
+      } catch (error) {
+        console.error('Network or other error in getDirectChildren:', error);
+        if (error instanceof Error) {
+          return { success: false, error: error.message };
+        }
+        return { success: false, error: 'An unexpected error occurred.' };
+      }
+    }    
+    

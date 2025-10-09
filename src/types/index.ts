@@ -14,7 +14,9 @@ export interface User {
   fullName: string;
   email: string;
   phone: string | null;
-  sponsorId: string | null;
+  originalSponsorId: string | null;
+  parentId: string | null;
+  isSplitSponsor: boolean;
   referralCode: string;
   packageUSD: number;
   pvPoints: number;
@@ -34,6 +36,16 @@ export type OnboardUserParams = {
   phone?: string;
   sponsorId?: string;
   dateJoined?: string; // YYYY-MM-DD format
+  placementDesigneeId?: string;
+};
+
+/**
+ * Defines the parameters for updating a user. All fields are optional.
+ */
+export type UpdateUserParams = {
+  fullName?: string;
+  phone?: string;
+  parentId?: string;
 };
 
 /**
@@ -49,6 +61,39 @@ export interface UserNode {
   fullName: string;
   packageUSD: number;
   children: UserNode[];
+  isSplitSponsor?: boolean;
+  originalSponsorId?: string;
+}
+
+/**
+ * Represents the parent user in the referral tree response.
+ */
+export interface ParentNode {
+  userId: string;
+  fullName: string;
+}
+
+/**
+ * Represents the successful response from the get referral tree API endpoint.
+ */
+export interface ReferralTreeResponse {
+  tree: UserNode;
+  parent: ParentNode | null;
+}
+
+/**
+ * Represents a direct child user, typically for designee selection.
+ */
+export interface DirectChild {
+  userId: string;
+  fullName: string;
+}
+
+/**
+ * Represents the successful response from the get direct children API endpoint.
+ */
+export interface DirectChildrenSuccessResponse {
+  children: DirectChild[];
 }
 
 // ================================================

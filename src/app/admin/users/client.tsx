@@ -25,6 +25,7 @@ import { getUsers } from '@/actions/adminActions';
 import { AllUsersSuccessResponse, User } from '@/types';
 import { Toaster, toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
+import { Crown } from 'lucide-react';
 
 export function AllUsersClient() {
   const [data, setData] = useState<AllUsersSuccessResponse | null>(null);
@@ -75,7 +76,7 @@ export function AllUsersClient() {
                 <TableHead>Full Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Package (USD)</TableHead>
-                <TableHead>Sponsor ID</TableHead>
+                <TableHead>Sponsorship</TableHead>
                 <TableHead>Referral Code</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -90,25 +91,46 @@ export function AllUsersClient() {
                 </TableRow>
               ) : data?.users.length ? (
                 data.users.map((user: User) => (
-                  <TableRow key={user.userId}>
+                  <TableRow
+                    key={user.userId}
+                    className={user.originalSponsorId === 'SAGENEX-GOLD' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500' : ''}
+                  >
                     <TableCell>{user.userId}</TableCell>
-                    <TableCell>{user.fullName}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {user.originalSponsorId === 'SAGENEX-GOLD' ? (
+                          <>
+                            <Crown className="h-4 w-4 text-yellow-500" />
+                            <span className="font-medium">{user.fullName}</span>
+                          </>
+                        ) : (
+                          user.fullName
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>${user.packageUSD.toLocaleString()}</TableCell>
-                    <TableCell>{user.sponsorId || 'N/A'}</TableCell>
+                    <TableCell>
+                      {user.isSplitSponsor ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{user.parentId} (Parent)</span>
+                          <span className="text-xs text-muted-foreground">
+                            {user.originalSponsorId} (Sponsor)
+                          </span>
+                        </div>
+                      ) : (
+                        <span>{user.parentId || 'N/A'}</span>
+                      )}
+                    </TableCell>
                     <TableCell>{user.referralCode}</TableCell>
                     <TableCell>{user.status}</TableCell>
-                    <TableCell className="space-x-2">
+                    <TableCell className="space-x-2 whitespace-nowrap">
                       <Link href={`/admin/users/${user.userId}`}>
                         <Button variant="outline" size="sm">View</Button>
                       </Link>
-                      {/* <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(user.userId)}
-                      >
-                        Delete
-                      </Button> */}
+                      <Link href={`/admin/users/${user.userId}/edit`}>
+                        <Button variant="secondary" size="sm">Edit</Button>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))
@@ -136,9 +158,9 @@ export function AllUsersClient() {
               </PaginationItem>
               {/* Simple pagination - for more complex scenarios, you might generate page numbers */}
               <PaginationItem>
-                <PaginationLink href="#">
+                <span className="px-4 py-2 text-sm font-medium">
                   Page {currentPage} of {data.pagination.totalPages}
-                </PaginationLink>
+                </span>
               </PaginationItem>
               <PaginationItem>
                 <PaginationNext

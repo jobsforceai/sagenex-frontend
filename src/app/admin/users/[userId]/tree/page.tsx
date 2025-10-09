@@ -21,7 +21,7 @@ export default async function ReferralTreePage({
         </Link>
       </div>
       {result.success ? (
-        <TreeClient initialTreeData={result.data} />
+        <TreeClient initialTreeData={result.data.tree} parentData={result.data.parent} />
       ) : (
         <Card>
           <CardContent>
