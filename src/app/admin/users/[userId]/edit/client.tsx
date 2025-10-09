@@ -1,6 +1,7 @@
 // src/app/admin/users/[userId]/edit/client.tsx
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { updateUser } from '@/actions/adminActions';
+import { updateUser, getReferralTree } from '@/actions/adminActions';
 import { User, UpdateUserParams } from '@/types';
 import { Toaster, toast } from 'sonner';
 
@@ -28,6 +29,23 @@ interface EditUserClientProps {
 
 export function EditUserClient({ user }: EditUserClientProps) {
   const router = useRouter();
+  const [isParentEditable, setIsParentEditable] = useState(false);
+  const [helperText, setHelperText] = useState("Checking eligibility...");
+
+  useEffect(() => {
+    async function checkParentEditability() {
+      const treeResult = await getReferralTree(user.userId, 1);
+      if (treeResult.success && treeResult.data.tree.children.length > 0) {
+        setIsParentEditable(false);
+        setHelperText("Cannot change parent: User already has direct children.");
+      } else {
+        setIsParentEditable(true);
+        setHelperText("Warning: Changing the parent may be irreversible if the user has verified deposits.");
+      }
+    }
+    checkParentEditability();
+  }, [user.userId]);
+
   const {
     register,
     handleSubmit,
@@ -42,15 +60,14 @@ export function EditUserClient({ user }: EditUserClientProps) {
   });
 
   const onSubmit = async (data: EditUserFormValues) => {
-    // Filter out empty strings so they are not sent in the PATCH request
     const updateData: UpdateUserParams = {};
     if (data.fullName && data.fullName !== user.fullName) {
       updateData.fullName = data.fullName;
     }
-    if (data.phone !== user.phone) { // Allows setting phone to empty
+    if (data.phone !== user.phone) {
       updateData.phone = data.phone;
     }
-    if (data.parentId !== user.parentId) { // Allows setting parentId to empty
+    if (isParentEditable && data.parentId !== user.parentId) {
       updateData.parentId = data.parentId;
     }
 
@@ -63,10 +80,9 @@ export function EditUserClient({ user }: EditUserClientProps) {
 
     if (result.success) {
       toast.success('User updated successfully!');
-      // Optionally, redirect after a short delay
       setTimeout(() => {
         router.push('/admin/users');
-        router.refresh(); // to see the changes in the table
+        router.refresh();
       }, 1000);
     } else {
       toast.error(`Failed to update user: ${result.error}`);
@@ -94,9 +110,14 @@ export function EditUserClient({ user }: EditUserClientProps) {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="parentId">Parent ID</Label>
-                <Input id="parentId" {...register('parentId')} />
+                <Input
+                  id="parentId"
+                  {...register('parentId')}
+                  disabled={!isParentEditable}
+                  className={!isParentEditable ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}
+                />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Warning: Changing the parent is only allowed if the user has no direct children.
+                  {helperText}
                 </p>
               </div>
             </div>
