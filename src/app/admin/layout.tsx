@@ -37,6 +37,12 @@ export default function AdminLayout({
           <Link href="/admin/deposits" className="block py-2 px-4 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
               Deposits
           </Link>
+          <Link href="/admin/kyc" className="block py-2 px-4 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
+              KYC Verification
+          </Link>
+          <Link href="/admin/withdrawals" className="block py-2 px-4 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
+              Withdrawals
+          </Link>
           <Link href="/admin/collectors" className="block py-2 px-4 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
               Collectors
           </Link>

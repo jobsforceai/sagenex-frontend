@@ -237,6 +237,74 @@ export interface VerifyDepositSuccessResponse {
 
 
 // ================================================
+// KYC Types
+// ================================================
+
+export type KycStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_SUBMITTED';
+
+export interface KycDocument {
+  docType: 'AADHAAR_FRONT' | 'AADHAAR_BACK' | 'PAN' | 'OTHER';
+  url: string;
+}
+
+export interface KycSubmission {
+  _id: string;
+  userId: string;
+  status: KycStatus;
+  documents: KycDocument[];
+  submittedAt: string; // ISO 8601 date string
+  verifiedAt?: string; // ISO 8601 date string
+  verifiedBy?: string;
+  rejectionReason?: string;
+}
+
+export type KycSubmissionsSuccessResponse = KycSubmission[];
+
+export interface VerifyKycSuccessResponse {
+  message: string;
+  kyc: KycSubmission;
+}
+
+export interface RejectKycSuccessResponse {
+  message: string;
+  kyc: KycSubmission;
+}
+
+
+// ================================================
+// Withdrawal Types
+// ================================================
+
+export type WithdrawalStatus = 'PENDING' | 'PAID' | 'REJECTED';
+
+export interface WithdrawalRequest {
+  _id: string;
+  userId: string;
+  amount: number;
+  status: WithdrawalStatus;
+  createdAt: string; // ISO 8601 date string
+  meta: {
+    withdrawalAddress: string;
+    processedBy?: string;
+    processedAt?: string; // ISO 8601 date string
+    rejectionReason?: string;
+  };
+}
+
+export type WithdrawalRequestsSuccessResponse = WithdrawalRequest[];
+
+export interface ApproveWithdrawalSuccessResponse {
+  message: string;
+  withdrawal: WithdrawalRequest;
+}
+
+export interface RejectWithdrawalSuccessResponse {
+  message: string;
+  withdrawal: WithdrawalRequest;
+}
+
+
+// ================================================
 // Generic & Pagination Types
 // ================================================
 

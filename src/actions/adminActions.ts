@@ -21,11 +21,16 @@ import {
   SetRateParams,
   SetRateSuccessResponse,
   RefreshLiveRatesSuccessResponse,
-  UserNode,
   Deposit,
   DirectChildrenSuccessResponse,
   ReferralTreeResponse,
   UpdateUserParams,
+  KycSubmissionsSuccessResponse,
+  VerifyKycSuccessResponse,
+  RejectKycSuccessResponse,
+  WithdrawalRequestsSuccessResponse,
+  ApproveWithdrawalSuccessResponse,
+  RejectWithdrawalSuccessResponse,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -137,7 +142,6 @@ export async function getMonthlyPayouts(
     }
 
     const successData: MonthlyPayoutsSuccessResponse = await response.json();
-    console.log('Fetched monthly payouts data:', successData);
     return { success: true, data: successData };
 
   } catch (error) {
@@ -567,9 +571,12 @@ export async function deleteUser(
     return { success: true, data: null };
 
   } catch (error) {
-        return { success: false, error: 'An unexpected error occurred.' };
-      }
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
     }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
     
 /**
  * Updates a user's details.
@@ -611,10 +618,45 @@ export async function updateUser(
      * @param userId - The ID of the user whose children to retrieve.
      * @returns A promise that resolves to a ServerActionResponse containing the list of direct children.
      */
-    export async function getDirectChildren(
-      userId: string
-    ): Promise<ServerActionResponse<DirectChildrenSuccessResponse>> {
-      const url = new URL(`${API_BASE_URL}/admin/users/${userId}/children`);
+        export async function getDirectChildren(
+          userId: string
+        ): Promise<ServerActionResponse<DirectChildrenSuccessResponse>> {
+          const url = new URL(`${API_BASE_URL}/admin/users/${userId}/children`);
+        
+          try {
+            const response = await fetch(url.toString(), {
+              method: 'GET',
+              headers: await getAuthHeaders(),
+              cache: 'no-store',
+            });
+        
+            if (!response.ok) {
+              return handleApiError(response);
+            }
+        
+            const successData: DirectChildrenSuccessResponse = await response.json();
+            return { success: true, data: successData };
+        
+          } catch (error) {
+            console.error('Network or other error in getDirectChildren:', error);
+            if (error instanceof Error) {
+              return { success: false, error: error.message };
+            }
+            return { success: false, error: 'An unexpected error occurred.' };
+          }
+        }
+    
+    /**
+     * Retrieves a list of KYC submissions, filterable by status.
+     *
+     * @param status - The status to filter by (e.g., 'PENDING', 'VERIFIED').
+     * @returns A promise that resolves to a ServerActionResponse containing the list of KYC submissions.
+     */
+    export async function getKycSubmissions(
+      status: string = 'PENDING'
+    ): Promise<ServerActionResponse<KycSubmissionsSuccessResponse>> {
+      const url = new URL(`${API_BASE_URL}/admin/kyc`);
+      url.searchParams.append('status', status);
     
       try {
         const response = await fetch(url.toString(), {
@@ -627,15 +669,173 @@ export async function updateUser(
           return handleApiError(response);
         }
     
-        const successData: DirectChildrenSuccessResponse = await response.json();
+        const successData: KycSubmissionsSuccessResponse = await response.json();
         return { success: true, data: successData };
-    
       } catch (error) {
-        console.error('Network or other error in getDirectChildren:', error);
+        console.error('Network or other error in getKycSubmissions:', error);
+        if (error instanceof Error) {
+          return { success: false, error: error.message };
+        }
+        return { success: false, error: 'An unexpected error occurred.' };
+      }
+    }
+    
+    /**
+     * Verifies a KYC submission.
+     *
+     * @param kycId - The ID of the KYC submission to verify.
+     * @returns A promise that resolves to a ServerActionResponse containing the success message and updated KYC data.
+     */
+    export async function verifyKycSubmission(
+      kycId: string
+    ): Promise<ServerActionResponse<VerifyKycSuccessResponse>> {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/kyc/${kycId}/verify`, {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+        });
+    
+        if (!response.ok) {
+          return handleApiError(response);
+        }
+    
+        const successData: VerifyKycSuccessResponse = await response.json();
+        return { success: true, data: successData };
+      } catch (error) {
+        console.error('Network or other error in verifyKycSubmission:', error);
+        if (error instanceof Error) {
+          return { success: false, error: error.message };
+        }
+        return { success: false, error: 'An unexpected error occurred.' };
+      }
+    }
+    
+    /**
+     * Rejects a KYC submission.
+     *
+     * @param kycId - The ID of the KYC submission to reject.
+     * @param reason - The reason for rejection.
+     * @returns A promise that resolves to a ServerActionResponse containing the success message and updated KYC data.
+     */
+    export async function rejectKycSubmission(
+      kycId: string,
+      reason: string
+    ): Promise<ServerActionResponse<RejectKycSuccessResponse>> {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/kyc/${kycId}/reject`, {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({ reason }),
+        });
+    
+        if (!response.ok) {
+          return handleApiError(response);
+        }
+    
+        const successData: RejectKycSuccessResponse = await response.json();
+        return { success: true, data: successData };
+      } catch (error) {
+        console.error('Network or other error in rejectKycSubmission:', error);
+        if (error instanceof Error) {
+          return { success: false, error: error.message };
+        }
+        return { success: false, error: 'An unexpected error occurred.' };
+      }
+    }
+    
+    /**
+     * Retrieves a list of withdrawal requests, filterable by status.
+     *
+     * @param status - The status to filter by (e.g., 'PENDING', 'COMPLETED').
+     * @returns A promise that resolves to a ServerActionResponse containing the list of withdrawal requests.
+     */
+    export async function getWithdrawalRequests(
+      status: string = 'PENDING'
+    ): Promise<ServerActionResponse<WithdrawalRequestsSuccessResponse>> {
+      const url = new URL(`${API_BASE_URL}/admin/withdrawals`);
+      url.searchParams.append('status', status);
+    
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+          cache: 'no-store',
+        });
+    
+        if (!response.ok) {
+          return handleApiError(response);
+        }
+    
+        const successData: WithdrawalRequestsSuccessResponse = await response.json();
+        return { success: true, data: successData };
+      } catch (error) {
+        console.error('Network or other error in getWithdrawalRequests:', error);
+        if (error instanceof Error) {
+          return { success: false, error: error.message };
+        }
+        return { success: false, error: 'An unexpected error occurred.' };
+      }
+    }
+    
+    /**
+     * Approves a withdrawal request.
+     *
+     * @param requestId - The ID of the withdrawal request to approve.
+     * @returns A promise that resolves to a ServerActionResponse containing the success message and updated withdrawal data.
+     */
+    export async function approveWithdrawalRequest(
+      requestId: string
+    ): Promise<ServerActionResponse<ApproveWithdrawalSuccessResponse>> {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/withdrawals/${requestId}/approve`, {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+        });
+    
+        if (!response.ok) {
+          return handleApiError(response);
+        }
+    
+        const successData: ApproveWithdrawalSuccessResponse = await response.json();
+        return { success: true, data: successData };
+      } catch (error) {
+        console.error('Network or other error in approveWithdrawalRequest:', error);
         if (error instanceof Error) {
           return { success: false, error: error.message };
         }
         return { success: false, error: 'An unexpected error occurred.' };
       }
     }    
+    /**
+     * Rejects a withdrawal request.
+     *
+     * @param requestId - The ID of the withdrawal request to reject.
+     * @param reason - The reason for rejection.
+     * @returns A promise that resolves to a ServerActionResponse containing the success message and updated withdrawal data.
+     */
+    export async function rejectWithdrawalRequest(
+      requestId: string,
+      reason: string
+    ): Promise<ServerActionResponse<RejectWithdrawalSuccessResponse>> {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/withdrawals/${requestId}/reject`, {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({ reason }),
+        });
+    
+        if (!response.ok) {
+          return handleApiError(response);
+        }
+    
+        const successData: RejectWithdrawalSuccessResponse = await response.json();
+        return { success: true, data: successData };
+      } catch (error) {
+        console.error('Network or other error in rejectWithdrawalRequest:', error);
+        if (error instanceof Error) {
+          return { success: false, error: error.message };
+        }
+        return { success: false, error: 'An unexpected error occurred.' };
+      }
+    }
     

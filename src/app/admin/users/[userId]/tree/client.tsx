@@ -167,9 +167,6 @@ function findUserNode(root: UserNode, userId: string): UserNode | null {
 
 
 export function TreeClient({ initialTreeData, parentData }: TreeClientProps) {
-  console.log('Received tree data from backend:', initialTreeData);
-  console.log('Received parent data from backend:', parentData);
-
   const { nodes, edges } = useMemo(
     () => transformDataToFlow(initialTreeData, parentData),
     [initialTreeData, parentData]

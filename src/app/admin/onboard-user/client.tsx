@@ -72,7 +72,6 @@ export function OnboardUserForm() {
         
         if (data.sponsorId) {
           setIsFetchingDesignees(true);
-          console.log('Fetching children for sponsor ID:', data.sponsorId);
           const childrenResult = await getDirectChildren(data.sponsorId);
           if (childrenResult.success) {
             setDesignees(childrenResult.data.children);
