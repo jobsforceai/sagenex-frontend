@@ -27,7 +27,7 @@ import { Toaster, toast } from 'sonner';
 const onboardSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().optional(),
+  phone: z.string().min(1, 'Phone number is required'),
   sponsorId: z.string().optional(),
   dateJoined: z.date().optional(),
   placementDesigneeId: z.string().optional(),
@@ -110,8 +110,9 @@ export function OnboardUserForm() {
                 {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone (Optional)</Label>
+                <Label htmlFor="phone">Phone</Label>
                 <Input id="phone" {...register('phone')} />
+                {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sponsorId">Sponsor ID (Optional)</Label>

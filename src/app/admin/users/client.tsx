@@ -1,7 +1,7 @@
 // src/app/admin/users/client.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,54 +12,82 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
 import { Button } from '@/components/ui/button';
 import { getUsers } from '@/actions/adminActions';
-import { AllUsersSuccessResponse, User } from '@/types';
+import { User } from '@/types';
 import { Toaster, toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Crown } from 'lucide-react';
 
 export function AllUsersClient() {
-  const [data, setData] = useState<AllUsersSuccessResponse | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const loader = useRef(null);
 
   const fetchUsers = useCallback(async (page: number, search: string) => {
     setIsLoading(true);
     const result = await getUsers({ page, search });
     if (result.success) {
-      setData(result.data);
+      setUsers((prevUsers) => (page === 1 ? result.data.users : [...prevUsers, ...result.data.users]));
+      setHasMore(result.data.pagination.totalPages > page);
     } else {
       toast.error(`Failed to fetch users: ${result.error}`);
-      setData(null);
+      setUsers([]);
     }
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
+    // Reset users and page number when search term changes
+    setUsers([]);
+    setCurrentPage(1);
+    setHasMore(true);
+  }, [debouncedSearchTerm]);
+
+  useEffect(() => {
     fetchUsers(currentPage, debouncedSearchTerm);
   }, [currentPage, debouncedSearchTerm, fetchUsers]);
 
-  const handlePageChange = (page: number) => {
-    if (page > 0 && page <= (data?.pagination.totalPages || 1)) {
-      setCurrentPage(page);
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const target = entries[0];
+      if (target.isIntersecting && hasMore && !isLoading) {
+        setCurrentPage((prevPage) => prevPage + 1);
+      }
+    },
+    [hasMore, isLoading]
+  );
+
+  useEffect(() => {
+    const option = {
+      root: null,
+      rootMargin: '20px',
+      threshold: 0,
+    };
+    const observer = new IntersectionObserver(handleObserver, option);
+    const currentLoader = loader.current;
+    if (currentLoader) {
+      observer.observe(currentLoader);
     }
-  };
+    return () => {
+      if (currentLoader) {
+        observer.unobserve(currentLoader);
+      }
+    };
+  }, [handleObserver]);
 
   return (
     <>
       <Toaster />
       <div className="space-y-4">
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          <Link href="/admin/users/deleted">
+            <Button variant="outline">View Deleted Users</Button>
+          </Link>
           <Input
             placeholder="Search by name, email, or ID..."
             value={searchTerm}
@@ -76,20 +104,13 @@ export function AllUsersClient() {
                 <TableHead>Email</TableHead>
                 <TableHead>Package (USD)</TableHead>
                 <TableHead>Sponsorship</TableHead>
-                <TableHead>Referral Code</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Mobile Number</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : data?.users.length ? (
-                data.users.map((user: User) => (
+              {users.length > 0 ? (
+                users.map((user: User) => (
                   <TableRow
                     key={user.userId}
                     className={user.originalSponsorId === 'SAGENEX-GOLD' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500' : ''}
@@ -121,8 +142,7 @@ export function AllUsersClient() {
                         <span>{user.parentId || 'N/A'}</span>
                       )}
                     </TableCell>
-                    <TableCell>{user.referralCode}</TableCell>
-                    <TableCell>{user.status}</TableCell>
+                    <TableCell>{user.phone || 'N/A'}</TableCell>
                     <TableCell className="space-x-2 whitespace-nowrap">
                       <Link href={`/admin/users/${user.userId}`}>
                         <Button variant="outline" size="sm">View</Button>
@@ -134,45 +154,25 @@ export function AllUsersClient() {
                   </TableRow>
                 ))
               ) : (
+                !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">
+                      No users found.
+                    </TableCell>
+                  </TableRow>
+                )
+              )}
+              {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
-                    No users found.
+                  <TableCell colSpan={7} className="text-center">
+                    Loading...
                   </TableCell>
                 </TableRow>
               )}
+              <TableRow ref={loader} />
             </TableBody>
           </Table>
         </div>
-        {data && data.pagination.totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handlePageChange(currentPage - 1);
-                  }}
-                />
-              </PaginationItem>
-              {/* Simple pagination - for more complex scenarios, you might generate page numbers */}
-              <PaginationItem>
-                <span className="px-4 py-2 text-sm font-medium">
-                  Page {currentPage} of {data.pagination.totalPages}
-                </span>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handlePageChange(currentPage + 1);
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        )}
       </div>
     </>
   );

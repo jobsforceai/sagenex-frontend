@@ -31,6 +31,7 @@ import {
   WithdrawalRequestsSuccessResponse,
   ApproveWithdrawalSuccessResponse,
   RejectWithdrawalSuccessResponse,
+  DeletedUsersSuccessResponse,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -577,7 +578,39 @@ export async function deleteUser(
     return { success: false, error: 'An unexpected error occurred.' };
   }
 }
-    
+
+  
+
+/**
+ * Retrieves a list of all deleted users.
+ *
+ * @returns A promise that resolves to a ServerActionResponse containing the list of deleted users.
+ */
+export async function getDeletedUsers(): Promise<ServerActionResponse<DeletedUsersSuccessResponse>> {
+  const url = new URL(`${API_BASE_URL}/admin/users/deleted`);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: await getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: DeletedUsersSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getDeletedUsers:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
 /**
  * Updates a user's details.
  *

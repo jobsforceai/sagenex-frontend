@@ -325,6 +325,22 @@ export interface AllUsersSuccessResponse {
   pagination: Pagination;
 }
 
+/**
+ * Represents a user who has been deleted.
+ * Extends the base User interface with deletion-specific fields.
+ */
+export interface DeletedUser extends User {
+  deletedAt: string; // ISO 8601 date string
+  deletedBy: string; // Admin user ID
+  transferredAmountUSD?: number; // Amount transferred on deletion
+}
+
+/**
+ * Represents the successful response from the get all deleted users API endpoint.
+ */
+export type DeletedUsersSuccessResponse = DeletedUser[];
+
+
 // ================================================
 // Generic API Response Types
 // ================================================
