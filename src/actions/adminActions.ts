@@ -1,4 +1,3 @@
-
 // src/actions/adminActions.ts
 'use server';
 
@@ -872,3 +871,34 @@ export async function updateUser(
       }
     }
     
+
+/**
+ * Assigns a user to the company root (SAGENEX-GOLD).
+ *
+ * @param userId - The ID of the user to assign to the root.
+ * @returns A promise that resolves to a ServerActionResponse containing the updated user data.
+ */
+export async function assignUserToRoot(
+  userId: string
+): Promise<ServerActionResponse<User>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/assign-to-root`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: { message: string; user: User } = await response.json();
+    return { success: true, data: successData.user };
+
+  } catch (error) {
+    console.error('Network or other error in assignUserToRoot:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}

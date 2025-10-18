@@ -10,10 +10,21 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { updateUser, getReferralTree } from '@/actions/adminActions';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { updateUser, getReferralTree, assignUserToRoot } from '@/actions/adminActions';
 import { User, UpdateUserParams } from '@/types';
 import { Toaster, toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const editUserSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
@@ -31,6 +42,7 @@ export function EditUserClient({ user }: EditUserClientProps) {
   const router = useRouter();
   const [isParentEditable, setIsParentEditable] = useState(false);
   const [helperText, setHelperText] = useState("Checking eligibility...");
+  const [isAssigningToRoot, setIsAssigningToRoot] = useState(false);
 
   useEffect(() => {
     async function checkParentEditability() {
@@ -89,6 +101,18 @@ export function EditUserClient({ user }: EditUserClientProps) {
     }
   };
 
+  const handleAssignToRoot = async () => {
+    setIsAssigningToRoot(true);
+    const result = await assignUserToRoot(user.userId);
+    if (result.success) {
+      toast.success('User successfully assigned to root.');
+      router.refresh();
+    } else {
+      toast.error(`Failed to assign user to root: ${result.error}`);
+    }
+    setIsAssigningToRoot(false);
+  };
+
   return (
     <>
       <Toaster />
@@ -126,6 +150,36 @@ export function EditUserClient({ user }: EditUserClientProps) {
             </Button>
           </form>
         </CardContent>
+        <CardFooter className="flex flex-col items-start gap-4 border-t pt-6">
+          <div>
+            <h3 className="font-semibold">Advanced Actions</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Assign this user directly to the company root (SAGENEX-GOLD). This action might be irreversible.
+            </p>
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                disabled={isAssigningToRoot || !isParentEditable || user.parentId === 'SAGENEX-GOLD'}
+              >
+                {isAssigningToRoot ? 'Assigning...' : 'Assign to Root'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will move the user directly under the company. This action cannot be undone if the user has verified deposits or children.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleAssignToRoot}>Continue</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardFooter>
       </Card>
     </>
   );
