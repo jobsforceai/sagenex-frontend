@@ -1,7 +1,6 @@
 // src/app/admin/users/[userId]/edit/client.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,26 +9,16 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { updateUser, getReferralTree, assignUserToRoot } from '@/actions/adminActions';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { updateUser } from '@/actions/adminActions';
 import { User, UpdateUserParams } from '@/types';
 import { Toaster, toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 
 const editUserSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
   phone: z.string().optional(),
   parentId: z.string().optional(),
+  originalSponsorId: z.string().optional(),
 });
 
 type EditUserFormValues = z.infer<typeof editUserSchema>;
@@ -40,23 +29,6 @@ interface EditUserClientProps {
 
 export function EditUserClient({ user }: EditUserClientProps) {
   const router = useRouter();
-  const [isParentEditable, setIsParentEditable] = useState(false);
-  const [helperText, setHelperText] = useState("Checking eligibility...");
-  const [isAssigningToRoot, setIsAssigningToRoot] = useState(false);
-
-  useEffect(() => {
-    async function checkParentEditability() {
-      const treeResult = await getReferralTree(user.userId, 1);
-      if (treeResult.success && treeResult.data.tree.children.length > 0) {
-        setIsParentEditable(false);
-        setHelperText("Cannot change parent: User already has direct children.");
-      } else {
-        setIsParentEditable(true);
-        setHelperText("Warning: Changing the parent may be irreversible if the user has verified deposits.");
-      }
-    }
-    checkParentEditability();
-  }, [user.userId]);
 
   const {
     register,
@@ -68,19 +40,24 @@ export function EditUserClient({ user }: EditUserClientProps) {
       fullName: user.fullName || '',
       phone: user.phone || '',
       parentId: user.parentId || '',
+      originalSponsorId: user.originalSponsorId || '',
     },
   });
 
   const onSubmit = async (data: EditUserFormValues) => {
     const updateData: UpdateUserParams = {};
-    if (data.fullName && data.fullName !== user.fullName) {
+    
+    if (data.fullName !== user.fullName) {
       updateData.fullName = data.fullName;
     }
     if (data.phone !== user.phone) {
       updateData.phone = data.phone;
     }
-    if (isParentEditable && data.parentId !== user.parentId) {
+    if (data.parentId !== user.parentId) {
       updateData.parentId = data.parentId;
+    }
+    if (data.originalSponsorId !== user.originalSponsorId) {
+      updateData.originalSponsorId = data.originalSponsorId;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -99,18 +76,6 @@ export function EditUserClient({ user }: EditUserClientProps) {
     } else {
       toast.error(`Failed to update user: ${result.error}`);
     }
-  };
-
-  const handleAssignToRoot = async () => {
-    setIsAssigningToRoot(true);
-    const result = await assignUserToRoot(user.userId);
-    if (result.success) {
-      toast.success('User successfully assigned to root.');
-      router.refresh();
-    } else {
-      toast.error(`Failed to assign user to root: ${result.error}`);
-    }
-    setIsAssigningToRoot(false);
   };
 
   return (
@@ -132,16 +97,18 @@ export function EditUserClient({ user }: EditUserClientProps) {
                 <Label htmlFor="phone">Phone</Label>
                 <Input id="phone" {...register('phone')} />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label htmlFor="parentId">Parent ID</Label>
-                <Input
-                  id="parentId"
-                  {...register('parentId')}
-                  disabled={!isParentEditable}
-                  className={!isParentEditable ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {helperText}
+                <Input id="parentId" {...register('parentId')} />
+                 <p className="text-xs text-muted-foreground mt-1">
+                  Determines placement in the tree. Use SAGENEX-GOLD for company root.
+                </p>
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="originalSponsorId">Original Sponsor ID</Label>
+                <Input id="originalSponsorId" {...register('originalSponsorId')} />
+                 <p className="text-xs text-muted-foreground mt-1">
+                  Determines bonus payouts. Use SAGENEX-GOLD for company root.
                 </p>
               </div>
             </div>
@@ -150,36 +117,6 @@ export function EditUserClient({ user }: EditUserClientProps) {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col items-start gap-4 border-t pt-6">
-          <div>
-            <h3 className="font-semibold">Advanced Actions</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Assign this user directly to the company root (SAGENEX-GOLD). This action might be irreversible.
-            </p>
-          </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={isAssigningToRoot || !isParentEditable || user.parentId === 'SAGENEX-GOLD'}
-              >
-                {isAssigningToRoot ? 'Assigning...' : 'Assign to Root'}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will move the user directly under the company. This action cannot be undone if the user has verified deposits or children.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleAssignToRoot}>Continue</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardFooter>
       </Card>
     </>
   );

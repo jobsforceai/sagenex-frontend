@@ -46,6 +46,7 @@ export type UpdateUserParams = {
   fullName?: string;
   phone?: string;
   parentId?: string;
+  originalSponsorId?: string;
 };
 
 /**
