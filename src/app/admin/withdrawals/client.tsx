@@ -150,7 +150,7 @@ export function WithdrawalsClient() {
               <TableRow>
                 <TableHead>User ID</TableHead>
                 <TableHead>Amount (USDT)</TableHead>
-                <TableHead>Withdrawal Address</TableHead>
+                <TableHead>Payout Details</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Requested At</TableHead>
                 <TableHead>Actions</TableHead>
@@ -168,7 +168,19 @@ export function WithdrawalsClient() {
                   <TableRow key={request._id}>
                     <TableCell>{request.userId}</TableCell>
                     <TableCell>${Math.abs(request.amount).toLocaleString()}</TableCell>
-                    <TableCell className="truncate max-w-xs">{request.meta.withdrawalAddress}</TableCell>
+                    <TableCell className="truncate max-w-xs">
+                      {request.meta.upiId ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{request.meta.upiId}</span>
+                          <span className="text-xs text-muted-foreground">UPI</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col">
+                           <span className="font-medium">{request.meta.withdrawalAddress}</span>
+                           <span className="text-xs text-muted-foreground">Crypto</span>
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>{renderStatusBadge(request.status)}</TableCell>
                     <TableCell>{new Date(request.createdAt).toLocaleString()}</TableCell>
                     <TableCell className="space-x-2">

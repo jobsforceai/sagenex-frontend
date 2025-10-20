@@ -285,10 +285,14 @@ export interface WithdrawalRequest {
   status: WithdrawalStatus;
   createdAt: string; // ISO 8601 date string
   meta: {
-    withdrawalAddress: string;
+    payoutType: 'CRYPTO' | 'UPI';
+    withdrawalAddress?: string; // For CRYPTO
+    upiId?: string; // For UPI
     processedBy?: string;
     processedAt?: string; // ISO 8601 date string
     rejectionReason?: string;
+    nowPaymentsPayoutId?: string; // For CRYPTO success
+    transactionId?: string; // For CRYPTO success
   };
 }
 
