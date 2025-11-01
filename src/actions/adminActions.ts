@@ -31,6 +31,8 @@ import {
   ApproveWithdrawalSuccessResponse,
   RejectWithdrawalSuccessResponse,
   DeletedUsersSuccessResponse,
+  PendingRewardClaimsSuccessResponse,
+  ApproveRewardClaimSuccessResponse,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -674,10 +676,70 @@ export async function updateUser(
             if (error instanceof Error) {
               return { success: false, error: error.message };
             }
-            return { success: false, error: 'An unexpected error occurred.' };
-          }
-        }
-    
+        return { success: false, error: 'An unexpected error occurred.' };
+      }
+    }
+
+/**
+ * Retrieves a list of all pending reward claims.
+ *
+ * @returns A promise that resolves to a ServerActionResponse containing the list of pending reward claims.
+ */
+export async function getPendingRewardClaims(): Promise<ServerActionResponse<PendingRewardClaimsSuccessResponse>> {
+  const url = new URL(`${API_BASE_URL}/admin/rewards/pending`);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: await getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: PendingRewardClaimsSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getPendingRewardClaims:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Approves a pending reward claim.
+ *
+ * @param rewardId - The ID of the reward to approve.
+ * @returns A promise that resolves to a ServerActionResponse containing the success message and updated claim.
+ */
+export async function approveRewardClaim(
+  rewardId: string
+): Promise<ServerActionResponse<ApproveRewardClaimSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rewards/${rewardId}/approve`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: ApproveRewardClaimSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in approveRewardClaim:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
     /**
      * Retrieves a list of KYC submissions, filterable by status.
      *

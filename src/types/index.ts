@@ -285,9 +285,15 @@ export interface WithdrawalRequest {
   status: WithdrawalStatus;
   createdAt: string; // ISO 8601 date string
   meta: {
-    payoutType: 'CRYPTO' | 'UPI';
+    payoutType: 'CRYPTO' | 'UPI' | 'BANK';
     withdrawalAddress?: string; // For CRYPTO
     upiId?: string; // For UPI
+    bankDetails?: {
+      bankName: string;
+      accountNumber: string;
+      ifscCode: string;
+      holderName: string;
+    };
     processedBy?: string;
     processedAt?: string; // ISO 8601 date string
     rejectionReason?: string;
@@ -306,6 +312,36 @@ export interface ApproveWithdrawalSuccessResponse {
 export interface RejectWithdrawalSuccessResponse {
   message: string;
   withdrawal: WithdrawalRequest;
+}
+
+
+// ================================================
+// Rewards Types
+// ================================================
+
+export interface RewardClaim {
+  _id: string; // rewardId
+  offerId: string;
+  claimStatus: 'PENDING' | 'COMPLETED';
+  userId: {
+    userId: string;
+    fullName: string;
+    email: string;
+  };
+  offerSnapshot: {
+    name: string;
+    reward: string;
+  };
+  updatedAt: string; // ISO 8601 date string
+  isClaimed?: boolean;
+  claimedAt?: string;
+}
+
+export type PendingRewardClaimsSuccessResponse = RewardClaim[];
+
+export interface ApproveRewardClaimSuccessResponse {
+  message: string;
+  claim: RewardClaim;
 }
 
 

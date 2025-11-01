@@ -49,6 +49,9 @@ export default function AdminLayout({
           <Link href="/admin/currency-rates" className="block py-2 px-4 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
               Currency Rates
           </Link>
+          <Link href="/admin/rewards" className="block py-2 px-4 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
+              Rewards
+          </Link>
         </nav>
         <form action={logout}>
           <Button variant="outline" className="w-full">Logout</Button>

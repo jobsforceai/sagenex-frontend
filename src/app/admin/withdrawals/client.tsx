@@ -11,22 +11,45 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { getWithdrawalRequests, approveWithdrawalRequest, rejectWithdrawalRequest } from '@/actions/adminActions';
 import { WithdrawalRequest, WithdrawalStatus } from '@/types';
 import { Toaster, toast } from 'sonner';
+import { Copy } from 'lucide-react';
+
+// Helper component for the copy button
+function CopyToClipboardButton({ textToCopy }: { textToCopy: string }) {
+  const handleCopy = () => {
+    navigator.clipboard.writeText(textToCopy);
+    toast.success('Copied to clipboard!');
+  };
+
+  return (
+    <Button variant="ghost" size="icon-sm" onClick={handleCopy}>
+      <Copy className="h-4 w-4" />
+    </Button>
+  );
+}
+
 
 export function WithdrawalsClient() {
   const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<WithdrawalStatus>('PENDING');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<WithdrawalRequest | null>(null);
+  
+  // State for Approve/Reject Modal
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [selectedRequestForAction, setSelectedRequestForAction] = useState<WithdrawalRequest | null>(null);
   const [modalAction, setModalAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // State for Details Modal
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedRequestForDetails, setSelectedRequestForDetails] = useState<WithdrawalRequest | null>(null);
+
 
   const fetchRequests = useCallback(async (currentStatus: WithdrawalStatus) => {
     setIsLoading(true);
@@ -44,36 +67,46 @@ export function WithdrawalsClient() {
     fetchRequests(status);
   }, [status, fetchRequests]);
 
-  const openModal = (request: WithdrawalRequest, action: 'approve' | 'reject') => {
-    setSelectedRequest(request);
+  const openActionModal = (request: WithdrawalRequest, action: 'approve' | 'reject') => {
+    setSelectedRequestForAction(request);
     setModalAction(action);
-    setIsModalOpen(true);
+    setIsActionModalOpen(true);
     setRejectionReason('');
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedRequest(null);
+  const closeActionModal = () => {
+    setIsActionModalOpen(false);
+    setSelectedRequestForAction(null);
     setModalAction(null);
   };
 
+  const openDetailsModal = (request: WithdrawalRequest) => {
+    setSelectedRequestForDetails(request);
+    setIsDetailsModalOpen(true);
+  };
+
+  const closeDetailsModal = () => {
+    setIsDetailsModalOpen(false);
+    setSelectedRequestForDetails(null);
+  };
+
   const handleSubmit = async () => {
-    if (!selectedRequest || !modalAction) return;
+    if (!selectedRequestForAction || !modalAction) return;
 
     let result;
     if (modalAction === 'approve') {
-      result = await approveWithdrawalRequest(selectedRequest._id);
+      result = await approveWithdrawalRequest(selectedRequestForAction._id);
     } else {
       if (!rejectionReason.trim()) {
         toast.error('Rejection reason cannot be empty.');
         return;
       }
-      result = await rejectWithdrawalRequest(selectedRequest._id, rejectionReason);
+      result = await rejectWithdrawalRequest(selectedRequestForAction._id, rejectionReason);
     }
 
     if (result.success) {
       toast.success(result.data.message);
-      closeModal();
+      closeActionModal();
       fetchRequests(status); // Refresh list
     } else {
       toast.error(`Action failed: ${result.error}`);
@@ -109,11 +142,12 @@ export function WithdrawalsClient() {
           ))}
         </div>
 
-        {isModalOpen && selectedRequest && (
+        {/* Action Modal (Approve/Reject) */}
+        {isActionModalOpen && selectedRequestForAction && (
           <Card>
             <CardHeader>
               <CardTitle>
-                {modalAction === 'approve' ? 'Approve' : 'Reject'} Withdrawal for {selectedRequest.userId}
+                {modalAction === 'approve' ? 'Approve' : 'Reject'} Withdrawal for {selectedRequestForAction.userId}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -129,19 +163,93 @@ export function WithdrawalsClient() {
                     />
                   </div>
                 ) : (
-                  <p>Are you sure you want to approve this withdrawal of ${Math.abs(selectedRequest.amount).toLocaleString()}?</p>
+                  <p>Are you sure you want to approve this withdrawal of ${Math.abs(selectedRequestForAction.amount).toLocaleString()}?</p>
                 )}
                 <div className="flex space-x-2">
                   <Button onClick={handleSubmit}>
                     Confirm {modalAction === 'approve' ? 'Approval' : 'Rejection'}
                   </Button>
-                  <Button variant="outline" onClick={closeModal}>
+                  <Button variant="outline" onClick={closeActionModal}>
                     Cancel
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Details Modal */}
+        {isDetailsModalOpen && selectedRequestForDetails && (
+           <Card>
+            <CardHeader>
+              <CardTitle>Withdrawal Details</CardTitle>
+              <CardDescription>User: {selectedRequestForDetails.userId}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {selectedRequestForDetails.meta.bankDetails && (
+                  <div className="space-y-2 text-sm">
+                    <h3 className="font-semibold text-base mb-2 border-b pb-1">Bank Details</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Holder Name:</span>
+                      <div className="flex items-center">
+                        <span className="font-mono">{selectedRequestForDetails.meta.bankDetails.holderName}</span>
+                        <CopyToClipboardButton textToCopy={selectedRequestForDetails.meta.bankDetails.holderName} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Account Number:</span>
+                       <div className="flex items-center">
+                        <span className="font-mono">{selectedRequestForDetails.meta.bankDetails.accountNumber}</span>
+                        <CopyToClipboardButton textToCopy={selectedRequestForDetails.meta.bankDetails.accountNumber} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">IFSC Code:</span>
+                       <div className="flex items-center">
+                        <span className="font-mono">{selectedRequestForDetails.meta.bankDetails.ifscCode}</span>
+                        <CopyToClipboardButton textToCopy={selectedRequestForDetails.meta.bankDetails.ifscCode} />
+                      </div>
+                    </div>
+                     <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Bank Name:</span>
+                       <div className="flex items-center">
+                        <span className="font-mono">{selectedRequestForDetails.meta.bankDetails.bankName}</span>
+                        <CopyToClipboardButton textToCopy={selectedRequestForDetails.meta.bankDetails.bankName} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedRequestForDetails.meta.upiId && (
+                   <div className="space-y-2 text-sm">
+                    <h3 className="font-semibold text-base mb-2 border-b pb-1">UPI Details</h3>
+                     <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">UPI ID:</span>
+                        <div className="flex items-center">
+                          <span className="font-mono">{selectedRequestForDetails.meta.upiId}</span>
+                          <CopyToClipboardButton textToCopy={selectedRequestForDetails.meta.upiId} />
+                        </div>
+                      </div>
+                   </div>
+                )}
+
+                {selectedRequestForDetails.meta.withdrawalAddress && (
+                   <div className="space-y-2 text-sm">
+                    <h3 className="font-semibold text-base mb-2 border-b pb-1">Crypto Details</h3>
+                     <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Wallet Address:</span>
+                        <div className="flex items-center">
+                          <span className="font-mono">{selectedRequestForDetails.meta.withdrawalAddress}</span>
+                          <CopyToClipboardButton textToCopy={selectedRequestForDetails.meta.withdrawalAddress} />
+                        </div>
+                      </div>
+                   </div>
+                )}
+                 <Button variant="outline" onClick={closeDetailsModal} className="mt-4">
+                    Close
+                  </Button>
+            </CardContent>
+           </Card>
         )}
 
         <div className="rounded-md border">
@@ -168,31 +276,27 @@ export function WithdrawalsClient() {
                   <TableRow key={request._id}>
                     <TableCell>{request.userId}</TableCell>
                     <TableCell>${Math.abs(request.amount).toLocaleString()}</TableCell>
-                    <TableCell className="truncate max-w-xs">
-                      {request.meta.upiId ? (
-                        <div className="flex flex-col">
-                          <span className="font-medium">{request.meta.upiId}</span>
-                          <span className="text-xs text-muted-foreground">UPI</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col">
-                           <span className="font-medium">{request.meta.withdrawalAddress}</span>
-                           <span className="text-xs text-muted-foreground">Crypto</span>
-                        </div>
-                      )}
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openDetailsModal(request)}
+                      >
+                        View Details
+                      </Button>
                     </TableCell>
                     <TableCell>{renderStatusBadge(request.status)}</TableCell>
                     <TableCell>{new Date(request.createdAt).toLocaleString()}</TableCell>
                     <TableCell className="space-x-2">
                       {request.status === 'PENDING' && (
                         <>
-                          <Button size="sm" onClick={() => openModal(request, 'approve')}>
+                          <Button size="sm" onClick={() => openActionModal(request, 'approve')}>
                             Approve
                           </Button>
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openModal(request, 'reject')}
+                            onClick={() => openActionModal(request, 'reject')}
                           >
                             Reject
                           </Button>
