@@ -319,11 +319,30 @@ export interface RejectWithdrawalSuccessResponse {
 // Rewards Types
 // ================================================
 
+export type RewardClaimStatus =
+  | 'NONE'
+  | 'PENDING'
+  | 'DOCUMENTS_REQUIRED'
+  | 'DOCUMENTS_PENDING'
+  | 'COMPLETED'
+  | 'REJECTED';
+
+export interface RewardDocument {
+  docType: string; // e.g., 'PASSPORT', 'FLIGHT_TICKET'
+  url: string;
+  uploadedAt: string;
+}
+
 export interface RewardClaim {
   _id: string; // rewardId
   offerId: string;
-  claimStatus: 'PENDING' | 'COMPLETED';
-  userId: {
+  claimStatus: RewardClaimStatus;
+  userId: { // This is populated for /pending
+    userId: string;
+    fullName: string;
+    email: string;
+  };
+  user?: { // This is populated for /documents/pending
     userId: string;
     fullName: string;
     email: string;
@@ -332,6 +351,8 @@ export interface RewardClaim {
     name: string;
     reward: string;
   };
+  uploadedDocuments?: RewardDocument[];
+  rejectionReason?: string;
   updatedAt: string; // ISO 8601 date string
   isClaimed?: boolean;
   claimedAt?: string;
@@ -344,13 +365,30 @@ export interface ApproveRewardClaimSuccessResponse {
   claim: RewardClaim;
 }
 
+export interface RejectRewardClaimSuccessResponse {
+  message: string;
+  claim: RewardClaim;
+}
+
+export type PendingDocumentReviewsSuccessResponse = RewardClaim[];
+
+export interface ApproveRewardDocumentsSuccessResponse {
+  message: string;
+  claim: RewardClaim;
+}
+
+export interface RejectRewardDocumentsSuccessResponse {
+  message: string;
+  claim: RewardClaim;
+}
+
 export interface RewardProgressDetail {
   name: string;
   type: 'personal' | 'downline';
   currentValue: number;
   targetValue: number;
   isEligible: boolean;
-  claimStatus: 'NONE' | 'PENDING' | 'COMPLETED';
+  claimStatus: RewardClaimStatus;
 }
 
 export interface UserRewardProgress {

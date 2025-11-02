@@ -34,6 +34,10 @@ import {
   PendingRewardClaimsSuccessResponse,
   ApproveRewardClaimSuccessResponse,
   AllUsersRewardProgressResponse,
+  RejectRewardClaimSuccessResponse,
+  PendingDocumentReviewsSuccessResponse,
+  ApproveRewardDocumentsSuccessResponse,
+  RejectRewardDocumentsSuccessResponse,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -957,6 +961,132 @@ export async function getAllUsersRewardProgress(): Promise<ServerActionResponse<
     return { success: true, data: successData };
   } catch (error) {
     console.error('Network or other error in getAllUsersRewardProgress:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Rejects a pending reward claim.
+ *
+ * @param rewardId - The ID of the reward to reject.
+ * @param reason - The reason for rejection.
+ * @returns A promise that resolves to a ServerActionResponse containing the success message.
+ */
+export async function rejectRewardClaim(
+  rewardId: string,
+  reason: string
+): Promise<ServerActionResponse<RejectRewardClaimSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rewards/${rewardId}/reject`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ reason }),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: RejectRewardClaimSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in rejectRewardClaim:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves a list of all reward claims pending document review.
+ *
+ * @returns A promise that resolves to a ServerActionResponse containing the list of claims.
+ */
+export async function getPendingDocumentReviews(): Promise<ServerActionResponse<PendingDocumentReviewsSuccessResponse>> {
+  const url = new URL(`${API_BASE_URL}/admin/rewards/documents/pending`);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: await getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: PendingDocumentReviewsSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getPendingDocumentReviews:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Approves the documents for a reward claim.
+ *
+ * @param rewardId - The ID of the reward claim.
+ * @returns A promise that resolves to a ServerActionResponse containing the success message.
+ */
+export async function approveRewardDocuments(
+  rewardId: string
+): Promise<ServerActionResponse<ApproveRewardDocumentsSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rewards/${rewardId}/documents/approve`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: ApproveRewardDocumentsSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in approveRewardDocuments:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Rejects the documents for a reward claim.
+ *
+ * @param rewardId - The ID of the reward claim.
+ * @param reason - The reason for rejection.
+ * @returns A promise that resolves to a ServerActionResponse containing the success message.
+ */
+export async function rejectRewardDocuments(
+  rewardId: string,
+  reason: string
+): Promise<ServerActionResponse<RejectRewardDocumentsSuccessResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rewards/${rewardId}/documents/reject`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ reason }),
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: RejectRewardDocumentsSuccessResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in rejectRewardDocuments:', error);
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }
