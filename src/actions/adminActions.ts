@@ -33,6 +33,7 @@ import {
   DeletedUsersSuccessResponse,
   PendingRewardClaimsSuccessResponse,
   ApproveRewardClaimSuccessResponse,
+  AllUsersRewardProgressResponse,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -933,3 +934,32 @@ export async function approveRewardClaim(
       }
     }
     
+/**
+ * Retrieves a comprehensive report of reward progress for all users.
+ *
+ * @returns A promise that resolves to a ServerActionResponse containing the reward progress data.
+ */
+export async function getAllUsersRewardProgress(): Promise<ServerActionResponse<AllUsersRewardProgressResponse>> {
+  const url = new URL(`${API_BASE_URL}/admin/rewards/progress`);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: await getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: AllUsersRewardProgressResponse = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getAllUsersRewardProgress:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}

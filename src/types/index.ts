@@ -344,6 +344,28 @@ export interface ApproveRewardClaimSuccessResponse {
   claim: RewardClaim;
 }
 
+export interface RewardProgressDetail {
+  name: string;
+  type: 'personal' | 'downline';
+  currentValue: number;
+  targetValue: number;
+  isEligible: boolean;
+  claimStatus: 'NONE' | 'PENDING' | 'COMPLETED';
+}
+
+export interface UserRewardProgress {
+  user: {
+    userId: string;
+    fullName: string;
+    email: string;
+  };
+  rewards: {
+    [offerId: string]: RewardProgressDetail;
+  };
+}
+
+export type AllUsersRewardProgressResponse = UserRewardProgress[];
+
 
 // ================================================
 // Generic & Pagination Types
