@@ -48,6 +48,7 @@ export function RewardsClient() {
   const [isProgressLoading, setIsProgressLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [filterOfferId, setFilterOfferId] = useState<string | null>(null);
 
   // State for Modal
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -189,12 +190,21 @@ export function RewardsClient() {
   }, [progressData]);
 
   const filteredProgressData = useMemo(() => {
-    if (!debouncedSearchTerm) return progressData;
-    return progressData.filter(p =>
-      p.user.fullName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      p.user.userId.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-    );
-  }, [progressData, debouncedSearchTerm]);
+    let filteredData = progressData;
+
+    if (debouncedSearchTerm) {
+      filteredData = filteredData.filter(p =>
+        p.user.fullName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        p.user.userId.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      );
+    }
+
+    if (filterOfferId) {
+      filteredData = filteredData.filter(p => p.rewards[filterOfferId]?.isEligible);
+    }
+
+    return filteredData;
+  }, [progressData, debouncedSearchTerm, filterOfferId]);
 
   const renderClaimStatusBadge = (status: RewardClaimStatus | RewardProgressDetail['claimStatus']) => {
     switch (status) {
@@ -346,17 +356,45 @@ export function RewardsClient() {
         {view === 'progress' && (
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <CardTitle>All Users Reward Progress</CardTitle>
                 <Input
                   placeholder="Search by name or ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
+                  className="max-w-full sm:max-w-sm"
                 />
               </div>
             </CardHeader>
             <CardContent>
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="offerFilter" className="shrink-0">Filter by Offer:</Label>
+                    <select
+                      id="offerFilter"
+                      value={filterOfferId || ''}
+                      onChange={(e) => setFilterOfferId(e.target.value || null)}
+                      className="border rounded-md p-1.5 text-sm w-full sm:w-auto"
+                    >
+                      <option value="">All Offers</option>
+                      {rewardHeaders.map(([offerId, name]) => (
+                        <option key={offerId} value={offerId}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {filterOfferId && (
+                    <Button variant="outline" size="sm" onClick={() => setFilterOfferId(null)} className="w-full sm:w-auto">Clear Filter</Button>
+                  )}
+                  <div className="flex flex-wrap gap-2 text-sm mt-2 sm:mt-0">
+                    {rewardHeaders.map(([offerId, name]) => (
+                      <div key={offerId} className="flex items-center gap-1 p-2 rounded-md bg-gray-100">
+                        <span className="font-semibold">{name}:</span>
+                        <span>{progressData.filter(p => p.rewards[offerId]?.isEligible).length} Eligible</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -404,6 +442,7 @@ export function RewardsClient() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
               </div>
             </CardContent>
           </Card>
