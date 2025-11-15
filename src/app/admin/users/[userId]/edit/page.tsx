@@ -21,7 +21,7 @@ export default async function EditUserPage({
         </Link>
       </div>
       {result.success ? (
-        <EditUserClient user={result.data} />
+        <EditUserClient user={result.data.user} placementOptions={result.data.placementOptions} />
       ) : (
         <Card>
           <CardContent>

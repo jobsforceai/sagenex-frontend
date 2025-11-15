@@ -1,18 +1,20 @@
 // src/app/admin/users/[userId]/edit/client.tsx
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { updateUser } from '@/actions/adminActions';
-import { User, UpdateUserParams } from '@/types';
+import { getPlacementOptions, updateUser } from '@/actions/adminActions';
+import { User, UpdateUserParams, PlacementOption } from '@/types';
 import { Toaster, toast } from 'sonner';
+import { Combobox } from '@/components/ui/combobox';
 
 const editUserSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
@@ -25,14 +27,20 @@ type EditUserFormValues = z.infer<typeof editUserSchema>;
 
 interface EditUserClientProps {
   user: User;
+  placementOptions: PlacementOption[];
 }
 
-export function EditUserClient({ user }: EditUserClientProps) {
+export function EditUserClient({ user, placementOptions: initialPlacementOptions }: EditUserClientProps) {
   const router = useRouter();
+  const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>(initialPlacementOptions);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
 
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<EditUserFormValues>({
     resolver: zodResolver(editUserSchema),
@@ -43,6 +51,26 @@ export function EditUserClient({ user }: EditUserClientProps) {
       originalSponsorId: user.originalSponsorId || '',
     },
   });
+
+  const handleFetchPlacementOptions = async () => {
+    const sponsorId = getValues('originalSponsorId');
+    if (!sponsorId) {
+      toast.warning('Please enter a Sponsor ID to load options.');
+      return;
+    }
+
+    setIsLoadingOptions(true);
+    setValue('parentId', ''); // Reset parentId when sponsor changes
+    const result = await getPlacementOptions(sponsorId);
+    if (result.success) {
+      setPlacementOptions(result.data.options);
+      toast.success('Placement options loaded successfully.');
+    } else {
+      toast.error(`Failed to load placement options: ${result.error}`);
+      setPlacementOptions([]); // Clear options on error
+    }
+    setIsLoadingOptions(false);
+  };
 
   const onSubmit = async (data: EditUserFormValues) => {
     const updateData: UpdateUserParams = {};
@@ -78,6 +106,11 @@ export function EditUserClient({ user }: EditUserClientProps) {
     }
   };
 
+  const parentIdOptions = placementOptions.map(opt => ({
+    value: opt.userId,
+    label: `${opt.fullName} (${opt.userId})`,
+  }));
+
   return (
     <>
       <Toaster />
@@ -98,17 +131,35 @@ export function EditUserClient({ user }: EditUserClientProps) {
                 <Input id="phone" {...register('phone')} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="parentId">Parent ID</Label>
-                <Input id="parentId" {...register('parentId')} />
-                 <p className="text-xs text-muted-foreground mt-1">
-                  Determines placement in the tree. Use SAGENEX-GOLD for company root.
-                </p>
-              </div>
-               <div className="space-y-2">
                 <Label htmlFor="originalSponsorId">Original Sponsor ID</Label>
-                <Input id="originalSponsorId" {...register('originalSponsorId')} />
+                <div className="flex items-center gap-2">
+                  <Input id="originalSponsorId" {...register('originalSponsorId')} />
+                  <Button type="button" onClick={handleFetchPlacementOptions} disabled={isLoadingOptions}>
+                    {isLoadingOptions ? 'Loading...' : 'Load'}
+                  </Button>
+                </div>
                  <p className="text-xs text-muted-foreground mt-1">
                   Determines bonus payouts. Use SAGENEX-GOLD for company root.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="parentId">Parent ID</Label>
+                <Controller
+                  name="parentId"
+                  control={control}
+                  render={({ field }) => (
+                    <Combobox
+                      options={parentIdOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select a parent..."
+                      searchPlaceholder="Search for a parent..."
+                      emptyText={isLoadingOptions ? 'Loading...' : 'No parents found.'}
+                    />
+                  )}
+                />
+                 <p className="text-xs text-muted-foreground mt-1">
+                  Determines placement in the tree. Use SAGENEX-GOLD for company root.
                 </p>
               </div>
             </div>

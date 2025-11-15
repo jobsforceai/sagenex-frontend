@@ -437,6 +437,22 @@ export interface DeletedUser extends User {
 }
 
 /**
+ * Represents a user who can be selected as a parent in the placement tree.
+ */
+export interface PlacementOption {
+  userId: string;
+  fullName: string;
+}
+
+/**
+ * Represents the successful response from the get user details API endpoint.
+ */
+export interface UserDetailsResponse {
+  user: User;
+  placementOptions: PlacementOption[];
+}
+
+/**
  * Represents the successful response from the get all deleted users API endpoint.
  */
 export type DeletedUsersSuccessResponse = DeletedUser[];

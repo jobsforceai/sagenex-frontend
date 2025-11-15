@@ -38,6 +38,8 @@ import {
   PendingDocumentReviewsSuccessResponse,
   ApproveRewardDocumentsSuccessResponse,
   RejectRewardDocumentsSuccessResponse,
+  PlacementOption,
+  UserDetailsResponse,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -213,7 +215,7 @@ export async function getUsers({
  */
 export async function getUser(
   userId: string
-): Promise<ServerActionResponse<User>> {
+): Promise<ServerActionResponse<UserDetailsResponse>> {
   const url = new URL(`${API_BASE_URL}/admin/users/${userId}`);
 
   try {
@@ -227,7 +229,7 @@ export async function getUser(
       return handleApiError(response);
     }
 
-    const successData: User = await response.json();
+    const successData: UserDetailsResponse = await response.json();
     return { success: true, data: successData };
 
   } catch (error) {
@@ -1087,6 +1089,39 @@ export async function rejectRewardDocuments(
     return { success: true, data: successData };
   } catch (error) {
     console.error('Network or other error in rejectRewardDocuments:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+/**
+ * Retrieves the placement options for a sponsored user.
+ *
+ * @param sponsorId - The ID of the sponsor.
+ * @returns A promise that resolves to a ServerActionResponse containing the list of placement options.
+ */
+export async function getPlacementOptions(
+  sponsorId: string
+): Promise<ServerActionResponse<{ options: PlacementOption[] }>> {
+  const url = new URL(`${API_BASE_URL}/admin/users/${sponsorId}/placement-options`);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: await getAuthHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return handleApiError(response);
+    }
+
+    const successData: { options: PlacementOption[] } = await response.json();
+    return { success: true, data: successData };
+  } catch (error) {
+    console.error('Network or other error in getPlacementOptions:', error);
     if (error instanceof Error) {
       return { success: false, error: error.message };
     }

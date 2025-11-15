@@ -14,7 +14,7 @@ export default async function UserDetailsPage({
     <div>
       <h1 className="text-3xl font-bold mb-6">User Details</h1>
       {result.success ? (
-        <UserDetailsClient user={result.data} />
+        <UserDetailsClient user={result.data.user} />
       ) : (
         <Card>
           <CardContent>
